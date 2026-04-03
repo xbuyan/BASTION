@@ -1,0 +1,11 @@
+.env
+*.env
+bin/
+backend/coverage.out
+backend/coverage.html
+backup-*.sql.gz
+*.log
+.air/
+tmp/
+node_modules/
+*.DS_Store

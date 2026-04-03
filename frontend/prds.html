@@ -1,0 +1,3106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRDS — Personal Research & Development System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;600&display=swap');
+
+:root {
+  --bg: #080b10;
+  --surface: #0d1117;
+  --surface2: #131920;
+  --surface3: #1a2332;
+  --border: #1e2d3d;
+  --border2: #243447;
+  --accent: #00d4ff;
+  --accent2: #7c3aed;
+  --accent3: #10b981;
+  --accent4: #f59e0b;
+  --accent5: #ef4444;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --text3: #4a5568;
+  --glow: rgba(0, 212, 255, 0.15);
+  --glow2: rgba(124, 58, 237, 0.15);
+  --font-head: 'Syne', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-ui: 'Space Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── NOISE OVERLAY ─── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+/* ─── TOP BAR ─── */
+#topbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 20px;
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+}
+
+#topbar::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.4;
+}
+
+.logo {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+  margin-right: 32px;
+  text-shadow: 0 0 20px var(--accent);
+  white-space: nowrap;
+}
+
+.logo span { color: var(--accent2); }
+
+nav {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+}
+
+nav button {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  padding: 6px 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+nav button:hover { color: var(--text2); background: var(--surface2); }
+nav button.active { color: var(--accent); background: rgba(0,212,255,0.08); }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.xp-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--accent4);
+}
+
+.xp-badge .xp-num { font-weight: 700; font-size: 13px; }
+
+.phase-badge {
+  background: linear-gradient(135deg, var(--accent2), #4f46e5);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: white;
+}
+
+/* ─── MAIN LAYOUT ─── */
+#app {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ─── SIDEBAR ─── */
+#sidebar {
+  width: 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-section { padding: 12px 0; }
+.sidebar-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text3);
+  padding: 0 16px 6px;
+  text-transform: uppercase;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 11px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.sidebar-item:hover { color: var(--text); background: var(--surface2); }
+.sidebar-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,212,255,0.06); }
+
+.sidebar-item .ico { width: 14px; text-align: center; font-size: 13px; }
+.sidebar-item .badge {
+  margin-left: auto;
+  background: var(--surface3);
+  border-radius: 8px;
+  padding: 1px 6px;
+  font-size: 9px;
+  color: var(--text3);
+}
+
+.sidebar-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+.sidebar-stats {
+  margin-top: auto;
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 10px;
+  color: var(--text2);
+}
+
+.stat-row .val { color: var(--accent3); font-weight: 700; }
+
+/* ─── CONTENT AREA ─── */
+#content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+.panel.active { display: flex; }
+
+.panel-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.panel-title {
+  font-family: var(--font-head);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.panel-sub { color: var(--text3); font-size: 11px; margin-left: 4px; }
+
+.panel-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: rgba(0,212,255,0.1); border-color: var(--accent); color: var(--accent); }
+.btn.success { background: rgba(16,185,129,0.1); border-color: var(--accent3); color: var(--accent3); }
+.btn.warning { background: rgba(245,158,11,0.1); border-color: var(--accent4); color: var(--accent4); }
+
+.panel-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ─── DASHBOARD ─── */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.metric-card.accent1::before { background: linear-gradient(90deg, var(--accent), transparent); }
+.metric-card.accent2::before { background: linear-gradient(90deg, var(--accent2), transparent); }
+.metric-card.accent3::before { background: linear-gradient(90deg, var(--accent3), transparent); }
+.metric-card.accent4::before { background: linear-gradient(90deg, var(--accent4), transparent); }
+
+.metric-label { font-size: 9px; letter-spacing: 1.5px; color: var(--text3); text-transform: uppercase; margin-bottom: 8px; }
+.metric-value { font-family: var(--font-head); font-size: 32px; font-weight: 800; line-height: 1; }
+.metric-card.accent1 .metric-value { color: var(--accent); }
+.metric-card.accent2 .metric-value { color: var(--accent2); }
+.metric-card.accent3 .metric-value { color: var(--accent3); }
+.metric-card.accent4 .metric-value { color: var(--accent4); }
+.metric-sub { font-size: 10px; color: var(--text3); margin-top: 4px; }
+
+.dash-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dash-row.thirds { grid-template-columns: 1fr 1fr 1fr; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.card-title {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ─── PROGRESS BARS ─── */
+.prog-item { margin-bottom: 12px; }
+.prog-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text2); margin-bottom: 4px; }
+.prog-bar { height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+.prog-fill.c1 { background: linear-gradient(90deg, var(--accent), #0099cc); }
+.prog-fill.c2 { background: linear-gradient(90deg, var(--accent2), #9333ea); }
+.prog-fill.c3 { background: linear-gradient(90deg, var(--accent3), #059669); }
+.prog-fill.c4 { background: linear-gradient(90deg, var(--accent4), #d97706); }
+.prog-fill.c5 { background: linear-gradient(90deg, var(--accent5), #dc2626); }
+
+/* ─── TIMELINE ─── */
+.timeline { position: relative; padding-left: 20px; }
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px; top: 0; bottom: 0;
+  width: 1px;
+  background: var(--border2);
+}
+
+.tl-item { position: relative; margin-bottom: 16px; }
+.tl-dot {
+  position: absolute;
+  left: -17px;
+  top: 4px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--border2);
+  background: var(--bg);
+}
+
+.tl-dot.done { background: var(--accent3); border-color: var(--accent3); box-shadow: 0 0 6px var(--accent3); }
+.tl-dot.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
+.tl-dot.future { background: var(--surface3); }
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 4px var(--accent); }
+  50% { box-shadow: 0 0 12px var(--accent); }
+}
+
+.tl-title { font-size: 11px; color: var(--text); font-weight: 700; }
+.tl-sub { font-size: 10px; color: var(--text3); }
+
+/* ─── REVIEW QUEUE ─── */
+.review-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.review-item:hover { border-color: var(--accent); }
+.review-tag {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.review-tag.ex { background: rgba(0,212,255,0.15); color: var(--accent); }
+.review-tag.cn { background: rgba(124,58,237,0.15); color: var(--accent2); }
+.review-tag.pa { background: rgba(16,185,129,0.15); color: var(--accent3); }
+
+.review-text { flex: 1; font-size: 11px; color: var(--text2); }
+.review-due { font-size: 9px; color: var(--accent5); }
+.review-due.soon { color: var(--accent4); }
+.review-due.ok { color: var(--accent3); }
+
+/* ─── EXERCISES PANEL ─── */
+.phase-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.phase-tab {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text3);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.phase-tab:hover { border-color: var(--border2); color: var(--text2); }
+.phase-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
+
+.ex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.ex-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.ex-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.ex-card.done { border-left: 3px solid var(--accent3); }
+.ex-card.in-progress { border-left: 3px solid var(--accent); }
+
+.ex-num { font-size: 9px; color: var(--text3); margin-bottom: 4px; }
+.ex-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.ex-desc { font-size: 10px; color: var(--text2); line-height: 1.5; margin-bottom: 8px; }
+.ex-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.ex-tag {
+  font-size: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--surface3);
+  color: var(--text3);
+  letter-spacing: 0.3px;
+}
+
+.ex-status {
+  position: absolute;
+  top: 10px; right: 10px;
+  font-size: 12px;
+}
+
+.diff-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  color: var(--text3);
+  margin-top: 6px;
+}
+
+.diff-dot { width: 5px; height: 5px; border-radius: 50%; }
+.diff-1 { background: var(--accent3); }
+.diff-2 { background: var(--accent4); }
+.diff-3 { background: var(--accent5); }
+
+/* ─── EXERCISE MODAL ─── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(8,11,16,0.85);
+  z-index: 100;
+  backdrop-filter: blur(4px);
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  width: 800px;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,212,255,0.05);
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.modal-title { font-family: var(--font-head); font-size: 18px; font-weight: 700; flex: 1; }
+.modal-close {
+  background: none; border: none; color: var(--text3);
+  font-size: 18px; cursor: pointer; line-height: 1;
+  padding: 2px 6px; border-radius: 3px;
+}
+.modal-close:hover { color: var(--text); background: var(--surface2); }
+
+.modal-body { flex: 1; overflow-y: auto; padding: 20px; }
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.code-area {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  min-height: 200px;
+  width: 100%;
+  resize: vertical;
+  outline: none;
+  line-height: 1.6;
+}
+
+.code-area:focus { border-color: var(--accent); }
+
+.md-content { font-size: 12px; color: var(--text2); line-height: 1.7; margin-bottom: 14px; }
+.md-content h4 { color: var(--accent); font-family: var(--font-head); font-size: 13px; margin: 14px 0 6px; }
+.md-content code {
+  background: var(--surface3);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent4);
+}
+
+.md-content pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.md-content pre code { background: none; padding: 0; color: var(--accent3); }
+
+/* ─── KNOWLEDGE GRAPH ─── */
+#graph-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+#graph-svg { width: 100%; height: 100%; }
+
+.graph-controls {
+  position: absolute;
+  top: 12px; right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.graph-btn {
+  width: 32px; height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text2);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.graph-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.graph-legend {
+  position: absolute;
+  bottom: 12px; left: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 9px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--text2);
+}
+
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+.graph-tooltip {
+  position: absolute;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 11px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  max-width: 240px;
+  z-index: 10;
+}
+
+.graph-tooltip.visible { opacity: 1; }
+
+/* ─── PROJECTS PANEL ─── */
+.proj-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.proj-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.proj-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+
+.proj-header { padding: 16px; border-bottom: 1px solid var(--border); }
+.proj-phase {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 6px;
+}
+
+.proj-name { font-family: var(--font-head); font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.proj-desc { font-size: 10px; color: var(--text2); line-height: 1.5; }
+
+.proj-body { padding: 12px 16px; }
+
+.proj-milestones { margin-bottom: 10px; }
+.milestone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 10px;
+  color: var(--text2);
+}
+
+.milestone .ms-check {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px;
+  flex-shrink: 0;
+}
+
+.milestone.done .ms-check { background: var(--accent3); border-color: var(--accent3); color: white; }
+.milestone.done { color: var(--text3); text-decoration: line-through; }
+
+.proj-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-pill {
+  font-size: 9px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.status-pill.concept { background: rgba(100,116,139,0.2); color: var(--text3); }
+.status-pill.prototype { background: rgba(245,158,11,0.15); color: var(--accent4); }
+.status-pill.production { background: rgba(16,185,129,0.15); color: var(--accent3); }
+.status-pill.published { background: rgba(0,212,255,0.15); color: var(--accent); }
+
+/* ─── RESEARCH PANEL ─── */
+.research-split {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 0;
+}
+
+.paper-list {
+  width: 300px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.paper-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.paper-item:hover { background: var(--surface2); }
+.paper-item.active { background: rgba(0,212,255,0.06); border-right: 2px solid var(--accent); }
+
+.paper-title { font-size: 11px; color: var(--text); font-weight: 700; margin-bottom: 3px; }
+.paper-authors { font-size: 9px; color: var(--text3); margin-bottom: 4px; }
+.paper-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.paper-tag {
+  font-size: 8px; padding: 1px 5px; border-radius: 2px;
+  background: var(--surface3); color: var(--text3);
+}
+
+.paper-status { font-size: 8px; float: right; }
+.paper-status.read { color: var(--accent3); }
+.paper-status.reading { color: var(--accent4); }
+.paper-status.queued { color: var(--text3); }
+
+.paper-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.paper-detail-title {
+  font-family: var(--font-head);
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.paper-detail-meta { font-size: 10px; color: var(--text3); margin-bottom: 16px; }
+
+.annotation-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.annotation-label { font-size: 9px; letter-spacing: 1px; color: var(--text3); text-transform: uppercase; margin-bottom: 6px; }
+.annotation-text { font-size: 11px; color: var(--text2); line-height: 1.6; }
+textarea.annotation-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  outline: none;
+  resize: none;
+  line-height: 1.6;
+  min-height: 60px;
+}
+
+/* ─── SPACED REPETITION PANEL ─── */
+.sr-card-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.sr-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  width: 560px;
+  max-width: 100%;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 40px rgba(0,212,255,0.05);
+}
+
+.sr-card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sr-card-type {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.sr-card-body {
+  flex: 1;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.sr-question {
+  font-family: var(--font-head);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 12px;
+}
+
+.sr-hint { font-size: 11px; color: var(--text3); margin-bottom: 20px; }
+
+.sr-answer-area {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+  min-height: 80px;
+  resize: none;
+  text-align: left;
+}
+
+.sr-answer-area:focus { border-color: var(--accent); }
+
+.sr-reveal {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  font-size: 12px;
+  color: var(--text2);
+  text-align: left;
+  width: 100%;
+  line-height: 1.6;
+  display: none;
+}
+
+.sr-reveal.shown { display: block; }
+
+.sr-card-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.sr-btn {
+  flex: 1;
+  max-width: 120px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sr-btn.again { background: rgba(239,68,68,0.1); border-color: var(--accent5); color: var(--accent5); }
+.sr-btn.hard { background: rgba(245,158,11,0.1); border-color: var(--accent4); color: var(--accent4); }
+.sr-btn.good { background: rgba(0,212,255,0.1); border-color: var(--accent); color: var(--accent); }
+.sr-btn.easy { background: rgba(16,185,129,0.1); border-color: var(--accent3); color: var(--accent3); }
+
+.sr-queue-info {
+  text-align: center;
+  padding: 12px;
+  font-size: 10px;
+  color: var(--text3);
+}
+
+/* ─── CONTRIBUTIONS PANEL ─── */
+.heatmap-container { margin-bottom: 20px; }
+.heatmap { display: flex; gap: 2px; }
+.heatmap-week { display: flex; flex-direction: column; gap: 2px; }
+.heatmap-day {
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  background: var(--surface3);
+}
+
+.heatmap-day.l1 { background: rgba(0,212,255,0.2); }
+.heatmap-day.l2 { background: rgba(0,212,255,0.4); }
+.heatmap-day.l3 { background: rgba(0,212,255,0.6); }
+.heatmap-day.l4 { background: rgba(0,212,255,0.85); }
+
+.contrib-list { display: flex; flex-direction: column; gap: 8px; }
+.contrib-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.contrib-icon { font-size: 18px; line-height: 1; padding-top: 2px; }
+.contrib-repo { font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+.contrib-title { font-size: 11px; color: var(--text); margin-bottom: 3px; }
+.contrib-meta { font-size: 9px; color: var(--text3); }
+.contrib-status {
+  margin-left: auto;
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.contrib-status.merged { background: rgba(124,58,237,0.2); color: var(--accent2); }
+.contrib-status.open { background: rgba(16,185,129,0.2); color: var(--accent3); }
+.contrib-status.closed { background: rgba(100,116,139,0.2); color: var(--text3); }
+
+/* ─── RESEARCH WORKSPACE ─── */
+.hypothesis-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.hyp-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.hyp-desc { font-size: 10px; color: var(--text2); line-height: 1.5; margin-bottom: 8px; }
+.hyp-status { font-size: 9px; padding: 2px 8px; border-radius: 3px; display: inline-block; }
+.hyp-status.exploring { background: rgba(0,212,255,0.15); color: var(--accent); }
+.hyp-status.validated { background: rgba(16,185,129,0.15); color: var(--accent3); }
+.hyp-status.rejected { background: rgba(239,68,68,0.15); color: var(--accent5); }
+
+/* ─── RADAR CHART ─── */
+#radar-canvas { display: block; margin: 0 auto; }
+
+/* ─── ANIMATIONS ─── */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.panel.active { animation: fadeIn 0.2s ease; }
+
+/* ─── TOAST ─── */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--surface);
+  border: 1px solid var(--accent3);
+  color: var(--accent3);
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 11px;
+  z-index: 200;
+  transform: translateY(60px);
+  opacity: 0;
+  transition: all 0.3s;
+}
+
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* ─── EMPTY STATE ─── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text3);
+  text-align: center;
+}
+
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-text { font-size: 12px; max-width: 280px; line-height: 1.6; }
+
+/* ─── SEARCH ─── */
+.search-bar {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text);
+  width: 220px;
+  outline: none;
+}
+
+.search-bar:focus { border-color: var(--accent); }
+.search-bar::placeholder { color: var(--text3); }
+
+/* ─── SECTION HEADER ─── */
+.section-header {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 8px 0 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ─── RADAR CHART SVG ─── */
+.radar-wrap { padding: 10px 0; }
+
+/* filter inputs */
+select.filter-sel {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text2);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  padding: 4px 8px;
+  outline: none;
+  cursor: pointer;
+}
+
+select.filter-sel:focus { border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo">PRDS<span>.</span></div>
+  <nav>
+    <button class="active" onclick="showPanel('dashboard',this)">⬡ Dashboard</button>
+    <button onclick="showPanel('exercises',this)">◈ Exercises</button>
+    <button onclick="showPanel('review',this)">⟳ Review Queue</button>
+    <button onclick="showPanel('graph',this)">⬡ Knowledge Graph</button>
+    <button onclick="showPanel('projects',this)">▲ Projects</button>
+    <button onclick="showPanel('research',this)">◎ Papers</button>
+    <button onclick="showPanel('contrib',this)">⬢ Contributions</button>
+    <button onclick="showPanel('workspace',this)">✦ Research</button>
+  </nav>
+  <div class="topbar-right">
+    <div class="xp-badge">⚡ <span class="xp-num" id="xp-display">0</span> XP</div>
+    <div class="phase-badge">PHASE I</div>
+  </div>
+</div>
+
+<div id="app">
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Current Phase</div>
+      <div class="sidebar-item active" onclick="filterPhase(1)">
+        <span class="ico">I</span> Foundation
+        <span class="badge">15 ex</span>
+      </div>
+      <div class="sidebar-item" onclick="filterPhase(2)">
+        <span class="ico">II</span> Cryptography
+        <span class="badge">20 ex</span>
+      </div>
+      <div class="sidebar-item" onclick="filterPhase(3)">
+        <span class="ico">III</span> Infra & Sec
+        <span class="badge">20 ex</span>
+      </div>
+      <div class="sidebar-item" onclick="filterPhase(4)">
+        <span class="ico">IV</span> Innovation
+        <span class="badge">15 ex</span>
+      </div>
+      <div class="sidebar-item" onclick="filterPhase(5)">
+        <span class="ico">V</span> Impact
+        <span class="badge">5 ex</span>
+      </div>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Domains</div>
+      <div class="sidebar-item" onclick="filterDomain('devops')">
+        <span class="ico">⚙</span> DevOps
+      </div>
+      <div class="sidebar-item" onclick="filterDomain('blockchain')">
+        <span class="ico">⛓</span> Blockchain
+      </div>
+      <div class="sidebar-item" onclick="filterDomain('security')">
+        <span class="ico">🛡</span> Cybersecurity
+      </div>
+      <div class="sidebar-item" onclick="filterDomain('math')">
+        <span class="ico">∑</span> Mathematics
+      </div>
+      <div class="sidebar-item" onclick="filterDomain('go')">
+        <span class="ico">Go</span> Golang
+      </div>
+    </div>
+    <div class="sidebar-stats">
+      <div class="section-header" style="padding:0;margin-bottom:8px;">Stats</div>
+      <div class="stat-row">Exercises Done <span class="val" id="stat-done">0</span></div>
+      <div class="stat-row">Concepts Learned <span class="val" id="stat-concepts">0</span></div>
+      <div class="stat-row">Papers Read <span class="val" id="stat-papers">0</span></div>
+      <div class="stat-row">Review Streak <span class="val" id="stat-streak">0d</span></div>
+      <div class="stat-row">Contributions <span class="val" id="stat-contrib">0</span></div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div id="panel-dashboard" class="panel active">
+      <div class="panel-header">
+        <div class="panel-title">Dashboard</div>
+        <span class="panel-sub">— 5-Year Revolutionary System</span>
+        <div class="panel-actions">
+          <button class="btn primary" onclick="addXP(50)">+ Log Session</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="dash-grid">
+          <div class="metric-card accent1">
+            <div class="metric-label">Total XP</div>
+            <div class="metric-value" id="m-xp">0</div>
+            <div class="metric-sub">of 100,000 target</div>
+          </div>
+          <div class="metric-card accent3">
+            <div class="metric-label">Exercises</div>
+            <div class="metric-value" id="m-ex">0</div>
+            <div class="metric-sub">of 75 total</div>
+          </div>
+          <div class="metric-card accent2">
+            <div class="metric-label">Concepts</div>
+            <div class="metric-value" id="m-cn">0</div>
+            <div class="metric-sub">mastered nodes</div>
+          </div>
+          <div class="metric-card accent4">
+            <div class="metric-label">Day Streak</div>
+            <div class="metric-value" id="m-streak">0</div>
+            <div class="metric-sub">keep it going!</div>
+          </div>
+        </div>
+
+        <div class="dash-row">
+          <div class="card">
+            <div class="card-title">⬡ Phase Progress</div>
+            <div class="prog-item">
+              <div class="prog-label"><span>Phase I — Foundation</span><span id="p1p">0%</span></div>
+              <div class="prog-bar"><div class="prog-fill c1" id="p1bar" style="width:0%"></div></div>
+            </div>
+            <div class="prog-item">
+              <div class="prog-label"><span>Phase II — Cryptography</span><span>0%</span></div>
+              <div class="prog-bar"><div class="prog-fill c2" style="width:0%"></div></div>
+            </div>
+            <div class="prog-item">
+              <div class="prog-label"><span>Phase III — Infrastructure</span><span>0%</span></div>
+              <div class="prog-bar"><div class="prog-fill c3" style="width:0%"></div></div>
+            </div>
+            <div class="prog-item">
+              <div class="prog-label"><span>Phase IV — Innovation</span><span>0%</span></div>
+              <div class="prog-bar"><div class="prog-fill c4" style="width:0%"></div></div>
+            </div>
+            <div class="prog-item">
+              <div class="prog-label"><span>Phase V — Impact</span><span>0%</span></div>
+              <div class="prog-bar"><div class="prog-fill c5" style="width:0%"></div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">◎ 5-Year Roadmap</div>
+            <div class="timeline">
+              <div class="tl-item">
+                <div class="tl-dot active"></div>
+                <div class="tl-title">Phase I — Months 1-4</div>
+                <div class="tl-sub">Systems fundamentals + math maturity</div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot future"></div>
+                <div class="tl-title">Phase II — Months 5-9</div>
+                <div class="tl-sub">Crypto + consensus + distributed systems</div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot future"></div>
+                <div class="tl-title">Phase III — Months 10-14</div>
+                <div class="tl-sub">Production infra + security operations</div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot future"></div>
+                <div class="tl-title">Phase IV — Months 15-24</div>
+                <div class="tl-sub">Original research + novel systems</div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot future"></div>
+                <div class="tl-title">Phase V — Months 25-60</div>
+                <div class="tl-sub">Deploy at scale + industry impact</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-row thirds">
+          <div class="card">
+            <div class="card-title">⚡ Due for Review</div>
+            <div id="dash-review-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">◈ Skill Radar</div>
+            <div class="radar-wrap">
+              <svg id="radar-chart" width="200" height="200" viewBox="0 0 200 200"></svg>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">▲ Active Projects</div>
+            <div id="dash-projects-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ EXERCISES ═══ -->
+    <div id="panel-exercises" class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Exercises</div>
+        <span class="panel-sub">— 75 total across 5 phases</span>
+        <div class="panel-actions">
+          <input class="search-bar" placeholder="Search exercises..." oninput="filterExercises(this.value)" />
+          <select class="filter-sel" onchange="filterExercisesByDomain(this.value)">
+            <option value="">All Domains</option>
+            <option value="math">Mathematics</option>
+            <option value="systems">Systems</option>
+            <option value="data-structures">Data Structures</option>
+            <option value="crypto">Cryptography</option>
+            <option value="consensus">Consensus</option>
+            <option value="networking">Networking</option>
+            <option value="devops">DevOps</option>
+            <option value="zkp">ZK Proofs</option>
+            <option value="ebpf">eBPF/Kernel</option>
+          </select>
+        </div>
+      </div>
+      <div class="phase-tabs" id="ex-phase-tabs">
+        <button class="phase-tab active" onclick="setExPhase('all',this)">All (75)</button>
+        <button class="phase-tab" onclick="setExPhase(1,this)">Phase I — Foundation (15)</button>
+        <button class="phase-tab" onclick="setExPhase(2,this)">Phase II — Cryptography (20)</button>
+        <button class="phase-tab" onclick="setExPhase(3,this)">Phase III — Infrastructure (20)</button>
+        <button class="phase-tab" onclick="setExPhase(4,this)">Phase IV — Innovation (15)</button>
+        <button class="phase-tab" onclick="setExPhase(5,this)">Phase V — Impact (5)</button>
+      </div>
+      <div class="panel-body">
+        <div class="ex-grid" id="ex-grid"></div>
+      </div>
+    </div>
+
+    <!-- ═══ REVIEW QUEUE ═══ -->
+    <div id="panel-review" class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Spaced Repetition</div>
+        <span class="panel-sub">— SM-2 Algorithm</span>
+        <div class="panel-actions">
+          <button class="btn" onclick="skipCard()">Skip</button>
+          <button class="btn primary" onclick="startReview()">Start Session</button>
+        </div>
+      </div>
+      <div class="sr-card-container" id="sr-container">
+        <div class="sr-card">
+          <div class="sr-card-header">
+            <span class="review-tag ex" id="sr-type">EXERCISE</span>
+            <span class="sr-card-type" id="sr-phase">PHASE I</span>
+            <span style="margin-left:auto;font-size:10px;color:var(--text3)" id="sr-queue-count">12 cards due</span>
+          </div>
+          <div class="sr-card-body">
+            <div class="sr-question" id="sr-question">Click "Start Session" to begin your review</div>
+            <div class="sr-hint" id="sr-hint">Build your mastery through active recall</div>
+            <textarea class="sr-answer-area" id="sr-answer" placeholder="Type your answer or explanation here..."></textarea>
+            <div class="sr-reveal" id="sr-reveal"></div>
+          </div>
+          <div class="sr-card-footer" id="sr-footer">
+            <button class="btn primary" onclick="revealAnswer()" id="sr-reveal-btn">Reveal Answer</button>
+          </div>
+        </div>
+      </div>
+      <div class="sr-queue-info" id="sr-queue-info">
+        <div id="review-queue-list"></div>
+      </div>
+    </div>
+
+    <!-- ═══ KNOWLEDGE GRAPH ═══ -->
+    <div id="panel-graph" class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Knowledge Graph</div>
+        <span class="panel-sub">— concept relationships</span>
+        <div class="panel-actions">
+          <select class="filter-sel" onchange="filterGraph(this.value)" id="graph-filter">
+            <option value="all">All Nodes</option>
+            <option value="math">Mathematics</option>
+            <option value="systems">Systems</option>
+            <option value="crypto">Cryptography</option>
+            <option value="consensus">Consensus</option>
+            <option value="devops">DevOps</option>
+            <option value="zkp">ZK Proofs</option>
+          </select>
+          <button class="btn" onclick="resetGraph()">Reset View</button>
+        </div>
+      </div>
+      <div id="graph-container">
+        <svg id="graph-svg"></svg>
+        <div class="graph-controls">
+          <button class="graph-btn" onclick="zoomGraph(1.2)">+</button>
+          <button class="graph-btn" onclick="zoomGraph(0.8)">−</button>
+          <button class="graph-btn" onclick="resetGraph()">⊙</button>
+        </div>
+        <div class="graph-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#00d4ff"></div> Mathematics</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#7c3aed"></div> Cryptography</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> Systems</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Consensus</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Security</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#06b6d4"></div> DevOps</div>
+        </div>
+        <div class="graph-tooltip" id="graph-tooltip"></div>
+      </div>
+    </div>
+
+    <!-- ═══ PROJECTS ═══ -->
+    <div id="panel-projects" class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Project Portfolio</div>
+        <span class="panel-sub">— capstone projects</span>
+        <div class="panel-actions">
+          <button class="btn primary" onclick="addProject()">+ New Project</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="proj-grid" id="proj-grid"></div>
+      </div>
+    </div>
+
+    <!-- ═══ RESEARCH (PAPERS) ═══ -->
+    <div id="panel-research" class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Research Papers</div>
+        <span class="panel-sub">— arXiv, IACR, USENIX</span>
+        <div class="panel-actions">
+          <input class="search-bar" placeholder="Search papers..." />
+          <button class="btn primary" onclick="importPaper()">+ Import Paper</button>
+        </div>
+      </div>
+      <div class="research-split" style="flex:1;overflow:hidden;">
+        <div class="paper-list" id="paper-list"></div>
+        <div class="paper-detail" id="paper-detail">
+          <div class="empty-state">
+            <div class="empty-icon">◎</div>
+            <div class="empty-text">Select a paper to view details and annotations</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ CONTRIBUTIONS ═══ -->
+    <div id="panel-contrib" class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Contributions</div>
+        <span class="panel-sub">— open source tracker</span>
+        <div class="panel-actions">
+          <button class="btn primary" onclick="addContrib()">+ Log Contribution</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">Contribution Heatmap (Last 52 Weeks)</div>
+          <div class="heatmap-container">
+            <div class="heatmap" id="heatmap"></div>
+          </div>
+        </div>
+        <div class="contrib-list" id="contrib-list"></div>
+      </div>
+    </div>
+
+    <!-- ═══ RESEARCH WORKSPACE ═══ -->
+    <div id="panel-workspace" class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Research Workspace</div>
+        <span class="panel-sub">— hypotheses, experiments, innovation</span>
+        <div class="panel-actions">
+          <button class="btn primary" onclick="addHypothesis()">+ New Hypothesis</button>
+          <button class="btn" onclick="addExperiment()">+ Log Experiment</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="dash-row">
+          <div>
+            <div class="section-header">Active Hypotheses</div>
+            <div id="hypotheses-list"></div>
+          </div>
+          <div>
+            <div class="section-header">Experiment Log</div>
+            <div id="experiments-list"></div>
+            <div class="section-header" style="margin-top:16px;">Conference / CFP Tracker</div>
+            <div id="cfp-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end content -->
+</div><!-- end app -->
+
+<!-- EXERCISE MODAL -->
+<div class="modal-overlay" id="ex-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div style="font-size:9px;color:var(--text3);margin-bottom:3px;" id="modal-phase-label"></div>
+        <div class="modal-title" id="modal-title">Exercise Title</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="md-content" id="modal-desc"></div>
+      <div style="margin-bottom:8px;font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Your Solution (Go)</div>
+      <textarea class="code-area" id="modal-code" placeholder="// Write your Go implementation here...
+package main
+
+import &quot;fmt&quot;
+
+func main() {
+    fmt.Println(&quot;Hello, PRDS!&quot;)
+}"></textarea>
+      <div style="margin-top:12px;margin-bottom:6px;font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Notes & Reflections</div>
+      <textarea class="code-area" id="modal-notes" style="min-height:80px;font-family:var(--font-ui);font-size:11px;" placeholder="What did you learn? What was challenging? How would you improve?"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn warning" onclick="markInProgress()">Mark In Progress</button>
+      <button class="btn success" onclick="markComplete()">✓ Mark Complete (+100 XP)</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════
+
+const STATE = {
+  xp: 0,
+  streak: 0,
+  completedExercises: new Set(),
+  inProgressExercises: new Set(),
+  masteredConcepts: new Set(),
+  reviewQueue: [],
+  currentCard: null,
+  cardRevealed: false,
+  currentPhaseFilter: 'all',
+  currentExercise: null,
+};
+
+// Load from localStorage
+function loadState() {
+  try {
+    const s = localStorage.getItem('prds_state');
+    if (s) {
+      const parsed = JSON.parse(s);
+      STATE.xp = parsed.xp || 0;
+      STATE.streak = parsed.streak || 0;
+      STATE.completedExercises = new Set(parsed.completed || []);
+      STATE.inProgressExercises = new Set(parsed.inProgress || []);
+      STATE.masteredConcepts = new Set(parsed.concepts || []);
+    }
+  } catch(e) {}
+}
+
+function saveState() {
+  localStorage.setItem('prds_state', JSON.stringify({
+    xp: STATE.xp,
+    streak: STATE.streak,
+    completed: [...STATE.completedExercises],
+    inProgress: [...STATE.inProgressExercises],
+    concepts: [...STATE.masteredConcepts],
+  }));
+}
+
+const EXERCISES = [
+  // PHASE I — Mathematical (1-5)
+  { id:1, phase:1, num:'I.1', title:'Theorem Prover', domain:'math', tags:['logic','propositional','proof-trees'],
+    difficulty:2, desc:`<h4>Set Theory & Logic</h4><p>Implement a theorem prover for propositional logic. Your prover should support resolution-based reasoning, build proof trees, and determine satisfiability of logical formulas.</p><h4>Requirements</h4><ul><li>Parse propositional formulas (AND, OR, NOT, IMPLIES)</li><li>Convert to Conjunctive Normal Form (CNF)</li><li>Implement resolution algorithm</li><li>Build and display proof trees</li></ul><h4>Starter Code</h4><pre><code>// Implement these functions:
+// ParseFormula(s string) Formula
+// ToCNF(f Formula) CNF
+// Resolve(clauses []Clause) bool</code></pre>` },
+  { id:2, phase:1, num:'I.2', title:'Number Theory Suite', domain:'math', tags:['euclidean','CRT','number-theory'],
+    difficulty:1, desc:`<h4>Number Theory</h4><p>Implement core number theory algorithms essential for cryptography.</p><h4>Algorithms to implement</h4><ul><li>Euclidean algorithm for GCD</li><li>Extended Euclidean algorithm (Bezout coefficients)</li><li>Chinese Remainder Theorem solver</li><li>Miller-Rabin primality test</li></ul>` },
+  { id:3, phase:1, num:'I.3', title:'Entropy Calculator', domain:'math', tags:['combinatorics','entropy','probability'],
+    difficulty:1, desc:`<h4>Combinatorics & Probability</h4><p>Implement entropy calculations and combinatorial generators essential for understanding cryptographic strength.</p><h4>Implement</h4><ul><li>Shannon entropy H(X) = -Σ p(x) log₂ p(x)</li><li>Combination and permutation generators</li><li>Birthday attack probability calculator</li></ul>` },
+  { id:4, phase:1, num:'I.4', title:'Huffman + Information Theory', domain:'math', tags:['huffman','information-theory','compression'],
+    difficulty:2, desc:`<h4>Information Theory</h4><p>Implement Huffman coding and Shannon entropy to understand data compression and information content — foundational for understanding blockchain data encoding.</p>` },
+  { id:5, phase:1, num:'I.5', title:'SAT Solver (DPLL)', domain:'math', tags:['SAT','NP-completeness','algorithms'],
+    difficulty:3, desc:`<h4>Computational Complexity</h4><p>Implement the DPLL (Davis–Putnam–Logemann–Loveland) algorithm for Boolean satisfiability. This exercise builds intuition for NP-completeness — critical for understanding the hardness assumptions in cryptography.</p>` },
+  // PHASE I — Systems (6-10)
+  { id:6, phase:1, num:'I.6', title:'Custom Memory Allocator', domain:'systems', tags:['memory','mmap','allocator'],
+    difficulty:3, desc:`<h4>Memory Management</h4><p>Implement a custom memory allocator in Go using mmap syscalls. Understand how malloc/free work at the OS level — essential for optimizing blockchain node performance.</p><h4>Requirements</h4><ul><li>Implement Alloc(size) and Free(ptr)</li><li>Use mmap for raw memory pages</li><li>Maintain a free list</li><li>Handle fragmentation</li></ul>` },
+  { id:7, phase:1, num:'I.7', title:'FUSE Filesystem', domain:'systems', tags:['fuse','filesystem','os'],
+    difficulty:3, desc:`<h4>File Systems</h4><p>Implement a FUSE (Filesystem in Userspace) filesystem in Go. Build a content-addressable storage layer — the foundation for blockchain state storage.</p>` },
+  { id:8, phase:1, num:'I.8', title:'Concurrency Patterns', domain:'systems', tags:['goroutines','channels','concurrency'],
+    difficulty:2, desc:`<h4>Concurrency Patterns</h4><p>Implement core Go concurrency patterns used extensively in blockchain node implementations.</p><h4>Patterns</h4><ul><li>Worker pool with graceful shutdown</li><li>Fan-in/fan-out pipeline</li><li>Context propagation and cancellation</li><li>Rate limiter using token bucket</li></ul>` },
+  { id:9, phase:1, num:'I.9', title:'TCP Chat + WebSocket', domain:'systems', tags:['networking','tcp','websocket'],
+    difficulty:2, desc:`<h4>Network Programming</h4><p>Implement a TCP chat server with WebSocket upgrade support. Build the networking primitives you'll use in P2P blockchain node communication.</p>` },
+  { id:10, phase:1, num:'I.10', title:'Go Profiler + Flame Graphs', domain:'systems', tags:['profiling','pprof','performance'],
+    difficulty:2, desc:`<h4>Performance Profiling</h4><p>Build a CPU profiler using Go's pprof and learn to interpret flame graphs. Optimize a blockchain transaction processor using profiling data.</p>` },
+  // PHASE I — Data Structures (11-15)
+  { id:11, phase:1, num:'I.11', title:'Merkle Tree', domain:'data-structures', tags:['merkle','inclusion-proofs','blockchain'],
+    difficulty:2, desc:`<h4>Merkle Tree</h4><p>Implement a Merkle tree with inclusion proofs and batch verification — the data structure at the heart of Bitcoin, Ethereum, and virtually every blockchain.</p><h4>Requirements</h4><ul><li>Build tree from arbitrary data</li><li>Generate inclusion proofs</li><li>Verify proofs efficiently O(log n)</li><li>Batch verification</li></ul>` },
+  { id:12, phase:1, num:'I.12', title:'LSM Tree', domain:'data-structures', tags:['lsm','sstable','storage'],
+    difficulty:3, desc:`<h4>Log-Structured Merge Tree</h4><p>Implement an LSM tree with memtable, SSTables, and compaction — the storage engine used by LevelDB, RocksDB, and blockchain state databases.</p>` },
+  { id:13, phase:1, num:'I.13', title:'Graph Algorithms Suite', domain:'data-structures', tags:['bfs','dijkstra','topological-sort'],
+    difficulty:2, desc:`<h4>Graph Algorithms</h4><p>Implement BFS, DFS, Dijkstra, A*, and topological sort. These algorithms appear throughout distributed system design and DAG-based blockchains.</p>` },
+  { id:14, phase:1, num:'I.14', title:'Bloom Filter', domain:'data-structures', tags:['probabilistic','membership','bloom'],
+    difficulty:1, desc:`<h4>Bloom Filter</h4><p>Implement a space-efficient probabilistic data structure for membership testing. Bloom filters are used in blockchain light clients to filter transactions.</p>` },
+  { id:15, phase:1, num:'I.15', title:'HyperLogLog', domain:'data-structures', tags:['cardinality','probabilistic','big-data'],
+    difficulty:2, desc:`<h4>HyperLogLog</h4><p>Implement the HyperLogLog cardinality estimation algorithm for counting unique elements at scale — used in blockchain analytics and network monitoring.</p>` },
+  // PHASE II — Cryptography (16-35)
+  { id:16, phase:2, num:'II.1', title:'Finite Field Arithmetic', domain:'crypto', tags:['GF','finite-field','algebra'],
+    difficulty:3, desc:`<h4>Abstract Algebra</h4><p>Implement arithmetic in GF(2⁸) and GF(p) (prime fields). This is the mathematical foundation of AES, elliptic curves, and all modern cryptography.</p>` },
+  { id:17, phase:2, num:'II.2', title:'Elliptic Curve Operations', domain:'crypto', tags:['ECC','point-addition','scalar-mult'],
+    difficulty:3, desc:`<h4>Elliptic Curves</h4><p>Implement elliptic curve point addition, doubling, and scalar multiplication over Weierstrass form curves. Build from pure math — no crypto libraries.</p>` },
+  { id:18, phase:2, num:'II.3', title:'ECDSA from Scratch', domain:'crypto', tags:['ECDSA','signatures','secp256k1'],
+    difficulty:3, desc:`<h4>Digital Signatures</h4><p>Implement the full ECDSA sign/verify pipeline without using crypto/ecdsa. Use the secp256k1 curve (Bitcoin's curve). Understand why k must be random.</p>` },
+  { id:19, phase:2, num:'II.4', title:'AES-128 from Scratch', domain:'crypto', tags:['AES','symmetric','block-cipher'],
+    difficulty:3, desc:`<h4>AES Implementation</h4><p>Implement AES-128 from scratch: SubBytes (S-box), ShiftRows, MixColumns, AddRoundKey. Understand how confusion and diffusion achieve security.</p>` },
+  { id:20, phase:2, num:'II.5', title:'SHA-256 from Scratch', domain:'crypto', tags:['SHA256','hash-function','compression'],
+    difficulty:2, desc:`<h4>Hash Functions</h4><p>Implement SHA-256 from scratch including the padding scheme and compression function. This is the hash function that secures Bitcoin's proof of work.</p>` },
+  { id:21, phase:2, num:'II.6', title:'Raft Consensus', domain:'consensus', tags:['raft','distributed','leader-election'],
+    difficulty:3, desc:`<h4>Raft Consensus Algorithm</h4><p>Implement complete Raft consensus protocol including leader election, log replication, log compaction, and snapshotting. This is the consensus algorithm used by etcd (Kubernetes' brain).</p>` },
+  { id:22, phase:2, num:'II.7', title:'PBFT Implementation', domain:'consensus', tags:['pbft','byzantine','fault-tolerance'],
+    difficulty:3, desc:`<h4>Practical Byzantine Fault Tolerance</h4><p>Implement PBFT for 3f+1 nodes. Understand pre-prepare, prepare, commit phases. This is the foundation of most enterprise blockchain consensus algorithms.</p>` },
+  { id:23, phase:2, num:'II.8', title:'Nakamoto Consensus', domain:'consensus', tags:['proof-of-work','longest-chain','bitcoin'],
+    difficulty:2, desc:`<h4>Nakamoto Consensus</h4><p>Implement Bitcoin's proof-of-work with difficulty adjustment and longest chain rule. Analyze the security assumptions and 51% attack economics.</p>` },
+  { id:24, phase:2, num:'II.9', title:'DAG Consensus (Hashgraph)', domain:'consensus', tags:['DAG','hashgraph','gossip'],
+    difficulty:3, desc:`<h4>DAG-Based Consensus</h4><p>Implement the Hashgraph gossip protocol for DAG-based consensus. Understand virtual voting and how DAGs achieve superior throughput to linear blockchains.</p>` },
+  { id:25, phase:2, num:'II.10', title:'Hybrid PoS + PoW', domain:'consensus', tags:['proof-of-stake','hybrid','security'],
+    difficulty:3, desc:`<h4>Hybrid Consensus Analysis</h4><p>Design and implement a hybrid Proof-of-Stake + Proof-of-Work consensus mechanism. Analyze security tradeoffs between the two approaches.</p>` },
+  { id:26, phase:2, num:'II.11', title:'libp2p + Kademlia DHT', domain:'networking', tags:['libp2p','DHT','kademlia','P2P'],
+    difficulty:3, desc:`<h4>P2P Networking</h4><p>Build a peer-to-peer network using libp2p with Kademlia DHT for peer discovery. This is the networking layer used by Ethereum, IPFS, and Filecoin.</p>` },
+  { id:27, phase:2, num:'II.12', title:'gRPC vs REST Benchmark', domain:'networking', tags:['grpc','rest','benchmark'],
+    difficulty:1, desc:`<h4>API Protocol Tradeoffs</h4><p>Implement the same blockchain API in both gRPC and REST. Benchmark latency, throughput, and payload size. Document tradeoffs for blockchain use cases.</p>` },
+  { id:28, phase:2, num:'II.13', title:'WebSocket Transaction Streaming', domain:'networking', tags:['websocket','streaming','realtime'],
+    difficulty:2, desc:`<h4>Real-time Transaction Propagation</h4><p>Implement WebSocket-based real-time transaction streaming for a blockchain node. Handle backpressure, reconnection, and message ordering.</p>` },
+  { id:29, phase:2, num:'II.14', title:'QUIC over UDP', domain:'networking', tags:['QUIC','UDP','0-RTT'],
+    difficulty:3, desc:`<h4>QUIC Protocol</h4><p>Implement QUIC transport protocol over UDP with 0-RTT connection establishment. QUIC is the future of blockchain P2P networking for low-latency consensus.</p>` },
+  { id:30, phase:2, num:'II.15', title:'Tor Integration', domain:'networking', tags:['tor','anonymity','privacy'],
+    difficulty:3, desc:`<h4>Anonymity Networks</h4><p>Route blockchain node traffic through the Tor network. Implement onion routing concepts and analyze the latency/privacy tradeoffs for blockchain use cases.</p>` },
+  { id:31, phase:2, num:'II.16', title:'TLA+ for Raft', domain:'math', tags:['TLA+','formal-methods','model-checking'],
+    difficulty:3, desc:`<h4>Formal Specification</h4><p>Model the Raft consensus algorithm in TLA+ and verify safety (linearizability) and liveness properties. This is how distributed systems engineers prove correctness.</p>` },
+  { id:32, phase:2, num:'II.17', title:'Property-Based Testing', domain:'systems', tags:['property-testing','quickcheck','invariants'],
+    difficulty:2, desc:`<h4>Invariant Testing</h4><p>Use property-based testing (Go's rapid or gopter) to find edge cases in your blockchain implementation. Define invariants and let the fuzzer break them.</p>` },
+  { id:33, phase:2, num:'II.18', title:'Alloy Model Checker', domain:'math', tags:['alloy','model-checking','smart-contracts'],
+    difficulty:3, desc:`<h4>Model Checking Smart Contracts</h4><p>Use the Alloy model checker to verify smart contract invariants. Prevent reentrancy and state explosion bugs before deployment.</p>` },
+  { id:34, phase:2, num:'II.19', title:'Symbolic Execution VM', domain:'systems', tags:['symbolic-execution','smart-contracts','analysis'],
+    difficulty:3, desc:`<h4>Symbolic Smart Contract Analysis</h4><p>Implement a simple symbolic execution engine for smart contract analysis. Find bugs that static analysis misses by exploring all execution paths.</p>` },
+  { id:35, phase:2, num:'II.20', title:'Coq Proof Assistant Basics', domain:'math', tags:['coq','proof-assistant','verified'],
+    difficulty:3, desc:`<h4>Verified Data Structures</h4><p>Learn Coq proof assistant basics and verify correctness of a Merkle tree implementation. This is the gold standard for blockchain security proofs.</p>` },
+  // PHASE III — Infrastructure (36-55)
+  { id:36, phase:3, num:'III.1', title:'Markov Chain Finality', domain:'math', tags:['markov','probability','finality'],
+    difficulty:3, desc:`<h4>Stochastic Processes</h4><p>Model blockchain finality as a Markov chain. Calculate the probability that a block is orphaned after k confirmations. Derive Bitcoin's 6-confirmation rule mathematically.</p>` },
+  { id:37, phase:3, num:'III.2', title:'MEV Simulation', domain:'consensus', tags:['MEV','game-theory','validator'],
+    difficulty:3, desc:`<h4>Miner Extractable Value</h4><p>Simulate MEV strategies: front-running, sandwich attacks, liquidation bots. Understand the economic security implications for proof-of-stake validators.</p>` },
+  { id:38, phase:3, num:'III.3', title:'Nash Equilibrium Staking', domain:'math', tags:['game-theory','nash','staking'],
+    difficulty:3, desc:`<h4>Game Theory</h4><p>Analyze staking game theory with slashing conditions using Nash equilibrium. Model validator behavior and derive optimal strategies for different threat models.</p>` },
+  { id:39, phase:3, num:'III.4', title:'Anomaly Detection', domain:'systems', tags:['statistics','anomaly','security'],
+    difficulty:2, desc:`<h4>Statistical Anomaly Detection</h4><p>Implement Grubbs test and Extreme Studentized Deviate (ESD) for detecting attacks on blockchain networks. Build a real-time monitoring pipeline.</p>` },
+  { id:40, phase:3, num:'III.5', title:'Queueing Theory (Mempool)', domain:'math', tags:['queueing','mempool','M/M/1'],
+    difficulty:2, desc:`<h4>Queueing Theory</h4><p>Model mempool transaction propagation as M/M/1 and M/M/c queues. Predict transaction confirmation times and optimize fee estimation algorithms.</p>` },
+  { id:41, phase:3, num:'III.6', title:'Schnorr Protocol', domain:'crypto', tags:['schnorr','ZKP','interactive'],
+    difficulty:2, desc:`<h4>Zero-Knowledge Proofs — Schnorr</h4><p>Implement both interactive and non-interactive Schnorr identification protocol. This is the foundation of Taproot (Bitcoin) and many modern ZK systems.</p>` },
+  { id:42, phase:3, num:'III.7', title:'Bulletproofs Range Proofs', domain:'zkp', tags:['bulletproofs','range-proofs','confidential'],
+    difficulty:3, desc:`<h4>Bulletproofs</h4><p>Implement Bulletproofs for confidential transaction range proofs. Used in Monero and other privacy-preserving blockchains to prove amounts without revealing them.</p>` },
+  { id:43, phase:3, num:'III.8', title:'ZK-SNARKs with Gnark', domain:'zkp', tags:['zkp','snark','circuit','gnark'],
+    difficulty:3, desc:`<h4>ZK-SNARKs</h4><p>Implement a simple arithmetic circuit using the Gnark library. Build a proof that you know a hash preimage without revealing the preimage. This is the tech behind ZK-rollups.</p>` },
+  { id:44, phase:3, num:'III.9', title:'ZK-STARKs Polynomial Commitment', domain:'zkp', tags:['stark','polynomial','commitment'],
+    difficulty:3, desc:`<h4>ZK-STARKs</h4><p>Implement a polynomial commitment scheme (the core of STARKs). Understand how FRI (Fast Reed-Solomon IOP) achieves transparency and post-quantum security.</p>` },
+  { id:45, phase:3, num:'III.10', title:"Shamir's Secret Sharing", domain:'crypto', tags:['shamir','threshold','GF'],
+    difficulty:2, desc:`<h4>Threshold Cryptography</h4><p>Implement Shamir's Secret Sharing over GF(2⁸) with verifiable shares. This is how hardware wallets and validator key management achieve threshold security.</p>` },
+  { id:46, phase:3, num:'III.11', title:'BLS Threshold Signatures', domain:'crypto', tags:['BLS','threshold-sig','pairing'],
+    difficulty:3, desc:`<h4>Threshold Signatures</h4><p>Implement BLS threshold signatures (t-of-n scheme) using pairing-friendly elliptic curves. Used by Ethereum 2.0 validators for aggregatable signatures.</p>` },
+  { id:47, phase:3, num:'III.12', title:'Pedersen DKG', domain:'crypto', tags:['DKG','distributed-keygen','pedersen'],
+    difficulty:3, desc:`<h4>Distributed Key Generation</h4><p>Implement Pedersen's Distributed Key Generation protocol. This enables validators to collectively generate keys without any single party knowing the full secret.</p>` },
+  { id:48, phase:3, num:'III.13', title:'Prometheus Exporter', domain:'devops', tags:['prometheus','metrics','monitoring'],
+    difficulty:1, desc:`<h4>Custom Metrics</h4><p>Build a custom Prometheus exporter for blockchain node metrics: block height, peer count, mempool size, consensus round latency. Implement histograms and counters correctly.</p>` },
+  { id:49, phase:3, num:'III.14', title:'OpenTelemetry Tracing', domain:'devops', tags:['otel','tracing','observability'],
+    difficulty:2, desc:`<h4>Distributed Tracing</h4><p>Implement distributed tracing across blockchain nodes using OpenTelemetry. Trace a transaction from submission through validation to finality across multiple services.</p>` },
+  { id:50, phase:3, num:'III.15', title:'Log Aggregation (Loki)', domain:'devops', tags:['loki','logging','ELK'],
+    difficulty:1, desc:`<h4>Log Aggregation</h4><p>Set up Loki/Promtail for blockchain node log aggregation. Build structured logging in Go and create Grafana dashboards for operational visibility.</p>` },
+  { id:51, phase:3, num:'III.16', title:'SLO & Error Budgets', domain:'devops', tags:['SLO','SLI','error-budget'],
+    difficulty:2, desc:`<h4>Site Reliability Engineering</h4><p>Define SLOs for a blockchain validator node. Implement error budget tracking and automated alerts. Calculate burn rate and set up alerting thresholds.</p>` },
+  { id:52, phase:3, num:'III.17', title:'Docker Multi-Stage Builds', domain:'devops', tags:['docker','multi-stage','optimization'],
+    difficulty:1, desc:`<h4>Container Optimization</h4><p>Create optimized multi-stage Docker builds for Go blockchain nodes. Achieve sub-10MB final images. Implement proper signal handling and graceful shutdown.</p>` },
+  { id:53, phase:3, num:'III.18', title:'Kubernetes Operator', domain:'devops', tags:['kubernetes','operator','CRD'],
+    difficulty:3, desc:`<h4>Custom Kubernetes Operators</h4><p>Build a Kubernetes operator for blockchain node lifecycle management using controller-runtime. Define CRDs for blockchain node configuration and manage rolling upgrades.</p>` },
+  { id:54, phase:3, num:'III.19', title:'Service Mesh (Istio mTLS)', domain:'devops', tags:['istio','mtls','service-mesh'],
+    difficulty:2, desc:`<h4>Service Mesh</h4><p>Configure Istio/Linkerd for mutual TLS between blockchain nodes. Implement traffic policies, circuit breakers, and canary deployments for zero-downtime upgrades.</p>` },
+  { id:55, phase:3, num:'III.20', title:'GitOps with ArgoCD', domain:'devops', tags:['gitops','argocd','IaC'],
+    difficulty:1, desc:`<h4>GitOps Deployment</h4><p>Set up ArgoCD for declarative, Git-driven deployments of your blockchain infrastructure. Implement progressive delivery and automated rollback on SLO violations.</p>` },
+  // PHASE IV — Innovation (56-70)
+  { id:56, phase:4, num:'IV.1', title:'BLS12-381 Pairings', domain:'crypto', tags:['BLS12-381','pairing','elliptic-curve'],
+    difficulty:3, desc:`<h4>Pairing-Friendly Curves</h4><p>Implement pairing operations on BLS12-381 — the curve used by Ethereum 2.0. Understand Tate pairing, Miller loop, and final exponentiation for ZK-SNARK verification.</p>` },
+  { id:57, phase:4, num:'IV.2', title:'Homomorphic Encryption (BFV)', domain:'crypto', tags:['FHE','homomorphic','privacy'],
+    difficulty:3, desc:`<h4>Fully Homomorphic Encryption</h4><p>Implement the BFV scheme basics as a toy implementation. Understand how computation on encrypted data enables private smart contracts and confidential computation.</p>` },
+  { id:58, phase:4, num:'IV.3', title:'Post-Quantum Signatures (Dilithium)', domain:'crypto', tags:['post-quantum','lattice','dilithium'],
+    difficulty:3, desc:`<h4>Post-Quantum Cryptography</h4><p>Implement CRYSTALS-Dilithium lattice-based digital signatures — the NIST PQC standard. Build a quantum-resistant signature scheme for blockchain transactions.</p>` },
+  { id:59, phase:4, num:'IV.4', title:'Verifiable Delay Functions', domain:'crypto', tags:['VDF','randomness','beacon'],
+    difficulty:3, desc:`<h4>Verifiable Delay Functions</h4><p>Implement a VDF for unpredictable, verifiable randomness generation. VDFs are used in Ethereum's RANDAO+VDF randomness beacon for fair validator selection.</p>` },
+  { id:60, phase:4, num:'IV.5', title:'Oblivious Transfer', domain:'crypto', tags:['OT','MPC','protocol'],
+    difficulty:3, desc:`<h4>Oblivious Transfer</h4><p>Implement 1-out-of-2 Oblivious Transfer protocol — the primitive that enables Multi-Party Computation for private smart contracts and secure voting systems.</p>` },
+  { id:61, phase:4, num:'IV.6', title:'Verified Smart Contracts (Coq/Lean)', domain:'math', tags:['coq','lean','verified','formal'],
+    difficulty:3, desc:`<h4>Formal Contract Verification</h4><p>Compile smart contract specifications to Coq/Lean proofs. Formally verify that your contract is free from integer overflow, reentrancy, and invariant violations.</p>` },
+  { id:62, phase:4, num:'IV.7', title:'Runtime Verification', domain:'systems', tags:['RV','monitors','formal-spec'],
+    difficulty:2, desc:`<h4>Runtime Verification</h4><p>Monitor blockchain execution against formal temporal logic specifications. Detect safety and liveness violations in real-time as blocks are produced.</p>` },
+  { id:63, phase:4, num:'IV.8', title:'Consensus Protocol Theorem Proving', domain:'math', tags:['theorem-proving','consensus','formal'],
+    difficulty:3, desc:`<h4>Formal Consensus Correctness</h4><p>Prove safety and liveness properties of your novel consensus protocol using Isabelle/HOL or Lean 4. This is publication-quality formal methods work.</p>` },
+  { id:64, phase:4, num:'IV.9', title:'eBPF XDP Load Balancer', domain:'ebpf', tags:['eBPF','XDP','DDoS'],
+    difficulty:3, desc:`<h4>eBPF DDoS Protection</h4><p>Build an XDP (eXpress Data Path) based DDoS protection system for blockchain nodes. Filter malicious traffic at kernel level before it reaches userspace — microsecond latency.</p>` },
+  { id:65, phase:4, num:'IV.10', title:'Custom Kernel Scheduler', domain:'ebpf', tags:['kernel','scheduler','performance'],
+    difficulty:3, desc:`<h4>Kernel-Level Optimization</h4><p>Write a custom Linux kernel module that prioritizes consensus message processing over other workloads. Achieve deterministic latency for validator nodes.</p>` },
+  { id:66, phase:4, num:'IV.11', title:'eBPF Security Monitor', domain:'ebpf', tags:['eBPF','cryptojacking','security'],
+    difficulty:3, desc:`<h4>eBPF-Based Threat Detection</h4><p>Detect cryptojacking and unauthorized mining via kernel hooks. Monitor syscalls, network connections, and CPU usage patterns to identify malicious activity.</p>` },
+  { id:67, phase:4, num:'IV.12', title:'WASM Smart Contract VM', domain:'systems', tags:['wasm','VM','smart-contracts'],
+    difficulty:3, desc:`<h4>WebAssembly Runtime</h4><p>Implement a WASM runtime in Go for executing smart contracts. Handle gas metering, deterministic execution, and sandboxing. This is how CosmWasm and near-protocol work.</p>` },
+  { id:68, phase:4, num:'IV.13', title:'JIT Compilation for WASM', domain:'systems', tags:['JIT','compilation','performance'],
+    difficulty:3, desc:`<h4>Just-In-Time Compilation</h4><p>Add JIT compilation to your WASM runtime for 10-100x performance improvement. Understand instruction selection, register allocation, and code generation for x86-64.</p>` },
+  { id:69, phase:4, num:'IV.14', title:'SGX Enclave Key Management', domain:'crypto', tags:['SGX','TEE','enclave'],
+    difficulty:3, desc:`<h4>Confidential Computing</h4><p>Implement validator key management inside an Intel SGX enclave. Keys never leave the enclave in plaintext, even from the node operator — essential for institutional validators.</p>` },
+  { id:70, phase:4, num:'IV.15', title:'Remote Attestation', domain:'crypto', tags:['attestation','SGX','trust'],
+    difficulty:3, desc:`<h4>Remote Attestation</h4><p>Implement remote attestation to verify SGX enclave integrity before sending secrets. Build the cryptographic proof chain that establishes trust in confidential computing.</p>` },
+  // PHASE V
+  { id:71, phase:5, num:'V.1', title:'Light Client Optimization', domain:'systems', tags:['light-client','sync','optimization'],
+    difficulty:3, desc:`<h4>Light Client Protocol</h4><p>Reduce blockchain sync time from days to minutes using erasure coding, fraud proofs, and validity proofs. Design the next generation of light client protocols.</p>` },
+  { id:72, phase:5, num:'V.2', title:'Cross-Chain Bridge', domain:'systems', tags:['bridge','cross-chain','interop'],
+    difficulty:3, desc:`<h4>Trustless Bridge Architecture</h4><p>Build a secure cross-chain asset bridge using light client verification and threshold multi-sig. Analyze and mitigate the $2B+ worth of bridge exploits from 2022.</p>` },
+  { id:73, phase:5, num:'V.3', title:'Privacy-Preserving DEX', domain:'zkp', tags:['DEX','privacy','ZKP'],
+    difficulty:3, desc:`<h4>ZK Decentralized Exchange</h4><p>Build a zero-knowledge decentralized exchange where order book and balances are private. Use ZK-SNARKs to prove order validity without revealing order details.</p>` },
+  { id:74, phase:5, num:'V.4', title:'Decentralized Identity (DID)', domain:'systems', tags:['DID','SSI','verifiable-credentials'],
+    difficulty:2, desc:`<h4>Self-Sovereign Identity</h4><p>Implement the W3C DID specification with verifiable credentials. Build an identity layer that works across chains without central authorities.</p>` },
+  { id:75, phase:5, num:'V.5', title:'Post-Quantum P2P Transport', domain:'crypto', tags:['post-quantum','networking','kyber'],
+    difficulty:3, desc:`<h4>Quantum-Resistant Networking</h4><p>Build a post-quantum secure P2P transport using CRYSTALS-Kyber KEM and hash-based signatures. Future-proof blockchain networking against quantum computers.</p>` },
+];
+
+const PROJECTS = [
+  { id:1, phase:1, name:'Distributed Key-Value Store', status:'concept',
+    desc:'Raft consensus, persistent LSM storage, gRPC API, Docker deployment, Prometheus metrics, chaos testing.',
+    milestones:[
+      {text:'Basic key-value operations (get/set/delete)', done:false},
+      {text:'Raft leader election and log replication', done:false},
+      {text:'LSM tree persistent storage', done:false},
+      {text:'gRPC API with TLS', done:false},
+      {text:'Docker Compose deployment', done:false},
+      {text:'Prometheus metrics exporter', done:false},
+      {text:'Chaos testing harness', done:false},
+    ]},
+  { id:2, phase:2, name:'Minimal Blockchain with Smart Contracts', status:'concept',
+    desc:'Account model, PoS consensus, P2P networking (libp2p), basic smart contract VM, ECIES + ring signatures, light client.',
+    milestones:[
+      {text:'Account model + UTXO comparison', done:false},
+      {text:'Simplified PoS consensus', done:false},
+      {text:'Transaction pool with validation', done:false},
+      {text:'libp2p P2P networking', done:false},
+      {text:'WASM smart contract VM', done:false},
+      {text:'Light client verification', done:false},
+    ]},
+  { id:3, phase:3, name:'Decentralized Validator Network', status:'concept',
+    desc:'Kubernetes multi-cloud, threshold signatures, HSM integration, Grafana observability, chaos engineering, SOC2 audit trails.',
+    milestones:[
+      {text:'Multi-cloud Kubernetes cluster', done:false},
+      {text:'Shamir threshold key management', done:false},
+      {text:'HSM/TEE integration', done:false},
+      {text:'Full Grafana observability stack', done:false},
+      {text:'Automated slashing protection', done:false},
+      {text:'Chaos engineering suite', done:false},
+      {text:'SOC2 audit trail implementation', done:false},
+    ]},
+  { id:4, phase:4, name:'ZK-Rollup for Ethereum L2', status:'concept',
+    desc:'Circuit for tx validation, prover/verifier, bridge contracts, decentralized sequencer network.',
+    milestones:[
+      {text:'Transaction validity circuit (Gnark)', done:false},
+      {text:'Proof generation system', done:false},
+      {text:'On-chain verifier contract', done:false},
+      {text:'L1↔L2 bridge architecture', done:false},
+      {text:'Decentralized sequencer network', done:false},
+    ]},
+  { id:5, phase:5, name:'Revolutionary Novel System', status:'concept',
+    desc:'Your unique contribution at the intersection of DevOps + Blockchain + Cybersecurity. Define problem, prototype, deploy, publish.',
+    milestones:[
+      {text:'Problem statement and gap analysis', done:false},
+      {text:'Novel protocol/algorithm design', done:false},
+      {text:'Go implementation + benchmarks', done:false},
+      {text:'Security audit', done:false},
+      {text:'Production deployment', done:false},
+      {text:'Community + documentation', done:false},
+      {text:'Research paper + submission', done:false},
+    ]},
+];
+
+const PAPERS = [
+  { id:1, title:'Bitcoin: A Peer-to-Peer Electronic Cash System', authors:'Satoshi Nakamoto', year:2008,
+    venue:'', tags:['bitcoin','blockchain','consensus'], status:'read',
+    abstract:'The foundational paper introducing the blockchain concept and proof-of-work consensus.',
+    notes:'The elegance of the longest chain rule as a coordination mechanism without trust. Key insight: economic incentives align honest behavior.',
+    questions:'Why is 6 confirmations considered final? The paper says honest chain grows fastest—what if 49% attack?',
+    implementation:'Implement SHA-256 PoW and difficulty adjustment (Exercise I.4, II.5, II.8)' },
+  { id:2, title:'In Search of an Understandable Consensus Algorithm (Raft)', authors:'Diego Ongaro, John Ousterhout', year:2014,
+    venue:'USENIX ATC', tags:['raft','consensus','distributed'], status:'reading',
+    abstract:'Raft is designed to be more understandable than Paxos while providing equivalent guarantees.',
+    notes:'The decomposition into leader election, log replication, and safety is brilliant pedagogically.',
+    questions:'How does Raft handle network partitions where leader is on minority side?',
+    implementation:'Complete Raft implementation (Exercise II.6)' },
+  { id:3, title:'Practical Byzantine Fault Tolerance', authors:'Castro, Liskov', year:1999,
+    venue:'OSDI', tags:['PBFT','byzantine','consensus'], status:'queued',
+    abstract:'First practical BFT algorithm, enabling secure state machine replication in asynchronous networks.',
+    notes:'', questions:'', implementation:'PBFT exercise (II.7)' },
+  { id:4, title:'Ethereum: A Next-Generation Smart Contract Platform', authors:'Vitalik Buterin', year:2014,
+    venue:'Ethereum White Paper', tags:['ethereum','smart-contracts','EVM'], status:'read',
+    abstract:'Generalizes Bitcoin\'s blockchain to support Turing-complete smart contracts via the EVM.',
+    notes:'The gas model is elegant—prevents halting problem by pricing computation. EVM stack machine design is simple but limiting.',
+    questions:'Why 256-bit word size? How does the EVM handle calls between contracts safely?',
+    implementation:'Build WASM VM alternative (Exercise IV.12)' },
+  { id:5, title:'Scalable Zero-Knowledge Proofs via Recursive Composition', authors:'Ben-Sasson et al.', year:2020,
+    venue:'IACR', tags:['zkp','starks','recursion'], status:'queued',
+    abstract:'STARKs enable transparent, post-quantum verifiable computation with no trusted setup.',
+    notes:'', questions:'', implementation:'ZK-STARKs polynomial commitment (Exercise III.9)' },
+  { id:6, title:'Ouroboros: A Provably Secure Proof-of-Stake Blockchain Protocol', authors:'Kiayias et al.', year:2017,
+    venue:'CRYPTO', tags:['proof-of-stake','cardano','security-proof'], status:'queued',
+    abstract:'First provably secure PoS blockchain protocol with formal security analysis.',
+    notes:'', questions:'', implementation:'Hybrid consensus design (Exercise II.10)' },
+];
+
+const CONTRIBUTIONS = [
+  { repo:'go-ethereum', title:'Fix memory leak in txpool cleanup goroutine', status:'open', date:'2025-01-15',
+    desc:'Identified a goroutine leak when transactions expire from the pool', skills:['Go','goroutines','debugging'] },
+  { repo:'kubernetes', title:'Improve error messages in custom resource validation', status:'open', date:'2025-01-20',
+    desc:'Better UX for operator developers when CRD validation fails', skills:['Go','Kubernetes','UX'] },
+];
+
+const HYPOTHESES = [
+  { title:'DAG-based Mempool Reduces MEV Extraction', status:'exploring',
+    desc:'Hypothesis: structuring the mempool as a DAG with transaction dependencies visible to all validators reduces MEV by making front-running detectable and slashable.',
+    experiments:['Simulate MEV strategies on linear vs DAG mempool', 'Measure extraction profit under both models'] },
+  { title:'BLS Aggregation Threshold >50% Reduces Finality Latency by 40%', status:'exploring',
+    desc:'Current 2/3 BLS threshold may be overly conservative. Analyze if 51% threshold with slashing conditions achieves equivalent security with lower latency.',
+    experiments:['Game-theoretic analysis of 51% vs 67% threshold', 'Latency benchmark on testnet'] },
+];
+
+const EXPERIMENTS = [
+  { title:'Raft vs PBFT latency at 10/50/100 nodes', date:'2025-01-10', result:'Raft: 12ms / PBFT: 47ms at 10 nodes. PBFT O(n²) messages shows clearly at scale.', status:'complete' },
+  { title:'SHA-256 GPU vs CPU throughput', date:'2025-01-18', result:'In progress', status:'running' },
+];
+
+const CFP_DEADLINES = [
+  { name:'CCS 2025', deadline:'Feb 1, 2025', topic:'Smart contract security' },
+  { name:'EuroSys 2025', deadline:'Mar 15, 2025', topic:'Distributed systems' },
+  { name:'IEEE S&P 2026', deadline:'Oct 1, 2025', topic:'Blockchain security' },
+];
+
+// ═══════════════════════════════════════════════════════
+// SPACED REPETITION (SM-2)
+// ═══════════════════════════════════════════════════════
+
+function buildReviewQueue() {
+  const queue = [];
+  const now = Date.now();
+  EXERCISES.forEach(ex => {
+    const key = `sr_${ex.id}`;
+    let sr = null;
+    try { sr = JSON.parse(localStorage.getItem(key)); } catch(e) {}
+    if (!sr) {
+      sr = { interval:1, easeFactor:2.5, nextReview: now, repetitions:0 };
+    }
+    const due = sr.nextReview <= now;
+    queue.push({ ...ex, sr, due, daysUntil: Math.max(0, Math.round((sr.nextReview - now) / 86400000)) });
+  });
+  queue.sort((a,b) => a.sr.nextReview - b.sr.nextReview);
+  return queue;
+}
+
+function sm2Update(sr, quality) { // quality: 0-5
+  if (quality < 3) {
+    sr.repetitions = 0;
+    sr.interval = 1;
+  } else {
+    if (sr.repetitions === 0) sr.interval = 1;
+    else if (sr.repetitions === 1) sr.interval = 6;
+    else sr.interval = Math.round(sr.interval * sr.easeFactor);
+    sr.repetitions++;
+  }
+  sr.easeFactor = Math.max(1.3, sr.easeFactor + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+  sr.nextReview = Date.now() + sr.interval * 86400000;
+  return sr;
+}
+
+function saveCardReview(exId, quality) {
+  const key = `sr_${exId}`;
+  let sr = null;
+  try { sr = JSON.parse(localStorage.getItem(key)); } catch(e) {}
+  if (!sr) sr = { interval:1, easeFactor:2.5, nextReview: Date.now(), repetitions:0 };
+  sr = sm2Update(sr, quality);
+  localStorage.setItem(key, JSON.stringify(sr));
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+
+function showPanel(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  // Init panel
+  if (id === 'graph') initGraph();
+  if (id === 'review') initReviewPanel();
+  if (id === 'contrib') renderContrib();
+  if (id === 'workspace') renderWorkspace();
+  if (id === 'research') renderPapers();
+}
+
+// ═══════════════════════════════════════════════════════
+// EXERCISES
+// ═══════════════════════════════════════════════════════
+
+let currentPhaseFilter = 'all';
+let currentSearchFilter = '';
+let currentDomainFilter = '';
+
+function renderExercises() {
+  const grid = document.getElementById('ex-grid');
+  let list = EXERCISES;
+  if (currentPhaseFilter !== 'all') list = list.filter(e => e.phase === parseInt(currentPhaseFilter));
+  if (currentSearchFilter) {
+    const q = currentSearchFilter.toLowerCase();
+    list = list.filter(e => e.title.toLowerCase().includes(q) || e.tags.some(t => t.includes(q)));
+  }
+  if (currentDomainFilter) list = list.filter(e => e.domain === currentDomainFilter || e.tags.includes(currentDomainFilter));
+
+  grid.innerHTML = list.map(ex => {
+    const done = STATE.completedExercises.has(ex.id);
+    const prog = STATE.inProgressExercises.has(ex.id);
+    const diffDots = '●'.repeat(ex.difficulty) + '○'.repeat(3 - ex.difficulty);
+    return `<div class="ex-card ${done?'done':prog?'in-progress':''}" onclick="openExercise(${ex.id})">
+      <div class="ex-num">${ex.num}</div>
+      <div class="ex-title">${ex.title}</div>
+      <div class="ex-desc">${ex.domain.toUpperCase()} · ${ex.tags.slice(0,2).join(', ')}</div>
+      <div class="ex-tags">${ex.tags.map(t=>`<span class="ex-tag">${t}</span>`).join('')}</div>
+      <div class="diff-badge">
+        <div class="diff-dot diff-${ex.difficulty}"></div>
+        ${['','Easy','Medium','Hard'][ex.difficulty]}
+      </div>
+      <div class="ex-status">${done?'✅':prog?'⏳':''}</div>
+    </div>`;
+  }).join('');
+}
+
+function setExPhase(phase, btn) {
+  currentPhaseFilter = phase;
+  document.querySelectorAll('.phase-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderExercises();
+}
+
+function filterExercises(q) {
+  currentSearchFilter = q;
+  renderExercises();
+}
+
+function filterExercisesByDomain(d) {
+  currentDomainFilter = d;
+  renderExercises();
+}
+
+function filterPhase(p) {
+  showPanel('exercises', document.querySelector('nav button:nth-child(2)'));
+  currentPhaseFilter = p;
+  const tabs = document.querySelectorAll('.phase-tab');
+  tabs.forEach(b => b.classList.remove('active'));
+  tabs[p].classList.add('active');
+  renderExercises();
+}
+
+function filterDomain(d) {
+  showPanel('exercises', document.querySelector('nav button:nth-child(2)'));
+  currentDomainFilter = d;
+  renderExercises();
+}
+
+// ═══════════════════════════════════════════════════════
+// EXERCISE MODAL
+// ═══════════════════════════════════════════════════════
+
+function openExercise(id) {
+  const ex = EXERCISES.find(e => e.id === id);
+  STATE.currentExercise = ex;
+  document.getElementById('modal-phase-label').textContent = `PHASE ${['','I','II','III','IV','V'][ex.phase]} · ${ex.domain.toUpperCase()} · #${ex.num}`;
+  document.getElementById('modal-title').textContent = ex.title;
+  document.getElementById('modal-desc').innerHTML = ex.desc;
+  const savedCode = localStorage.getItem(`code_${ex.id}`) || '';
+  const savedNotes = localStorage.getItem(`notes_${ex.id}`) || '';
+  document.getElementById('modal-code').value = savedCode;
+  document.getElementById('modal-notes').value = savedNotes;
+  document.getElementById('ex-modal').classList.add('open');
+}
+
+function closeModal() {
+  const ex = STATE.currentExercise;
+  if (ex) {
+    localStorage.setItem(`code_${ex.id}`, document.getElementById('modal-code').value);
+    localStorage.setItem(`notes_${ex.id}`, document.getElementById('modal-notes').value);
+  }
+  document.getElementById('ex-modal').classList.remove('open');
+}
+
+function markInProgress() {
+  const ex = STATE.currentExercise;
+  STATE.inProgressExercises.add(ex.id);
+  saveState();
+  closeModal();
+  renderExercises();
+  toast('Marked in progress ⏳');
+}
+
+function markComplete() {
+  const ex = STATE.currentExercise;
+  STATE.completedExercises.add(ex.id);
+  STATE.inProgressExercises.delete(ex.id);
+  addXP(100);
+  saveState();
+  closeModal();
+  renderExercises();
+  updateDashboard();
+  toast(`Exercise complete! +100 XP 🎉`);
+}
+
+// ═══════════════════════════════════════════════════════
+// XP & STATS
+// ═══════════════════════════════════════════════════════
+
+function addXP(amount) {
+  STATE.xp += amount;
+  document.getElementById('xp-display').textContent = STATE.xp.toLocaleString();
+  document.getElementById('m-xp').textContent = STATE.xp.toLocaleString();
+  saveState();
+}
+
+function updateDashboard() {
+  const done = STATE.completedExercises.size;
+  document.getElementById('m-ex').textContent = done;
+  document.getElementById('m-cn').textContent = STATE.masteredConcepts.size;
+  document.getElementById('m-streak').textContent = STATE.streak;
+  document.getElementById('stat-done').textContent = done;
+  document.getElementById('stat-concepts').textContent = STATE.masteredConcepts.size;
+  document.getElementById('stat-streak').textContent = STATE.streak + 'd';
+
+  // Phase progress
+  const phases = [1,2,3,4,5];
+  const phaseCounts = [15,20,20,15,5];
+  const phaseDone = phases.map(p => [...STATE.completedExercises].filter(id => {
+    const ex = EXERCISES.find(e=>e.id===id);
+    return ex && ex.phase === p;
+  }).length);
+
+  const p1 = Math.round(phaseDone[0]/15*100);
+  document.getElementById('p1p').textContent = p1 + '%';
+  document.getElementById('p1bar').style.width = p1 + '%';
+
+  // Review queue preview
+  const queue = buildReviewQueue().filter(c => c.due).slice(0,4);
+  const reviewList = document.getElementById('dash-review-list');
+  if (queue.length === 0) {
+    reviewList.innerHTML = '<div style="font-size:10px;color:var(--accent3);padding:8px 0">✓ All caught up!</div>';
+  } else {
+    reviewList.innerHTML = queue.map(c => `
+      <div class="review-item" onclick="showPanel('review', document.querySelector('nav button:nth-child(3)'))">
+        <span class="review-tag ex">EX</span>
+        <span class="review-text">${c.title}</span>
+        <span class="review-due">Due now</span>
+      </div>`).join('');
+  }
+
+  // Active projects
+  const projList = document.getElementById('dash-projects-list');
+  projList.innerHTML = PROJECTS.slice(0,3).map(p => `
+    <div style="padding:6px 0;border-bottom:1px solid var(--border);">
+      <div style="font-size:11px;color:var(--text);font-weight:700">${p.name}</div>
+      <div style="font-size:9px;color:var(--text3)">Phase ${['','I','II','III','IV','V'][p.phase]}</div>
+    </div>`).join('');
+
+  updateRadar();
+}
+
+// ═══════════════════════════════════════════════════════
+// RADAR CHART
+// ═══════════════════════════════════════════════════════
+
+function updateRadar() {
+  const svg = document.getElementById('radar-chart');
+  const cx = 100, cy = 100, r = 75;
+  const domains = ['Math','Systems','Crypto','DevOps','Consensus','ZKP'];
+  const n = domains.length;
+  const angles = domains.map((_,i) => (i/n)*2*Math.PI - Math.PI/2);
+
+  // Calculate scores
+  const scores = domains.map((d,i) => {
+    const dmap = ['math','systems','crypto','devops','consensus','zkp'];
+    const total = EXERCISES.filter(e => e.domain===dmap[i] || e.tags.includes(dmap[i])).length;
+    const done = EXERCISES.filter(e => (e.domain===dmap[i]||e.tags.includes(dmap[i])) && STATE.completedExercises.has(e.id)).length;
+    return total > 0 ? done/total : 0;
+  });
+
+  const grid = [0.25,0.5,0.75,1].map(ratio => {
+    const pts = angles.map(a => `${cx + r*ratio*Math.cos(a)},${cy + r*ratio*Math.sin(a)}`).join(' ');
+    return `<polygon points="${pts}" fill="none" stroke="var(--border)" stroke-width="1"/>`;
+  }).join('');
+
+  const axes = angles.map((a,i) => {
+    const lx = cx + (r+16)*Math.cos(a);
+    const ly = cy + (r+16)*Math.sin(a);
+    return `<line x1="${cx}" y1="${cy}" x2="${cx+r*Math.cos(a)}" y2="${cy+r*Math.sin(a)}" stroke="var(--border)" stroke-width="1"/>
+    <text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" fill="var(--text3)" font-size="7" font-family="Space Mono">${domains[i]}</text>`;
+  }).join('');
+
+  const dataPts = angles.map((a,i) => `${cx + r*scores[i]*Math.cos(a)},${cy + r*scores[i]*Math.sin(a)}`).join(' ');
+  const data = `<polygon points="${dataPts}" fill="rgba(0,212,255,0.15)" stroke="var(--accent)" stroke-width="1.5"/>`;
+
+  svg.innerHTML = grid + axes + data;
+}
+
+// ═══════════════════════════════════════════════════════
+// REVIEW (SPACED REPETITION)
+// ═══════════════════════════════════════════════════════
+
+let reviewQueue = [];
+let reviewIdx = 0;
+
+function initReviewPanel() {
+  reviewQueue = buildReviewQueue().filter(c => c.due);
+  document.getElementById('sr-queue-count').textContent = `${reviewQueue.length} cards due`;
+  if (reviewQueue.length === 0) {
+    document.getElementById('sr-question').textContent = '✓ All caught up! No cards due.';
+    document.getElementById('sr-hint').textContent = 'Come back tomorrow for more reviews.';
+    document.getElementById('sr-footer').innerHTML = '';
+  }
+}
+
+function startReview() {
+  reviewQueue = buildReviewQueue().filter(c => c.due);
+  reviewIdx = 0;
+  showNextCard();
+}
+
+function showNextCard() {
+  if (reviewIdx >= reviewQueue.length) {
+    document.getElementById('sr-question').textContent = '✓ Review session complete!';
+    document.getElementById('sr-hint').textContent = `Reviewed ${reviewQueue.length} cards.`;
+    document.getElementById('sr-footer').innerHTML = '<button class="btn primary" onclick="startReview()">New Session</button>';
+    document.getElementById('sr-reveal').classList.remove('shown');
+    return;
+  }
+  const card = reviewQueue[reviewIdx];
+  STATE.currentCard = card;
+  STATE.cardRevealed = false;
+  document.getElementById('sr-type').textContent = 'EXERCISE';
+  document.getElementById('sr-phase').textContent = `PHASE ${['','I','II','III','IV','V'][card.phase]}`;
+  document.getElementById('sr-question').textContent = card.title;
+  document.getElementById('sr-hint').textContent = card.tags.join(' · ');
+  document.getElementById('sr-answer').value = '';
+  document.getElementById('sr-reveal').classList.remove('shown');
+  document.getElementById('sr-footer').innerHTML = '<button class="btn primary" onclick="revealAnswer()" id="sr-reveal-btn">Reveal Answer</button>';
+  document.getElementById('sr-queue-count').textContent = `${reviewQueue.length - reviewIdx} remaining`;
+}
+
+function revealAnswer() {
+  const card = STATE.currentCard;
+  if (!card) return;
+  STATE.cardRevealed = true;
+  const reveal = document.getElementById('sr-reveal');
+  reveal.innerHTML = `<strong style="color:var(--accent)">${card.title}</strong><br><br>${card.tags.map(t=>`<code>${t}</code>`).join(' ')} <br><br><span style="color:var(--text2)">Domain: ${card.domain} · Phase ${['','I','II','III','IV','V'][card.phase]}</span>`;
+  reveal.classList.add('shown');
+  document.getElementById('sr-footer').innerHTML = `
+    <button class="sr-btn again" onclick="rateCard(1)">Again<br><span style="font-size:8px">&lt;1d</span></button>
+    <button class="sr-btn hard" onclick="rateCard(3)">Hard<br><span style="font-size:8px">&lt;${STATE.currentCard?.sr?.interval||1}d</span></button>
+    <button class="sr-btn good" onclick="rateCard(4)">Good<br><span style="font-size:8px">&lt;${Math.round((STATE.currentCard?.sr?.interval||1)*1.5)}d</span></button>
+    <button class="sr-btn easy" onclick="rateCard(5)">Easy<br><span style="font-size:8px">&lt;${Math.round((STATE.currentCard?.sr?.interval||1)*2.5)}d</span></button>`;
+}
+
+function rateCard(quality) {
+  if (!STATE.currentCard) return;
+  saveCardReview(STATE.currentCard.id, quality);
+  reviewIdx++;
+  showNextCard();
+}
+
+function skipCard() {
+  reviewIdx++;
+  showNextCard();
+}
+
+// ═══════════════════════════════════════════════════════
+// KNOWLEDGE GRAPH (D3)
+// ═══════════════════════════════════════════════════════
+
+const GRAPH_NODES = [
+  // Mathematics
+  {id:'set-theory',label:'Set Theory',domain:'math',phase:1},
+  {id:'number-theory',label:'Number Theory',domain:'math',phase:1},
+  {id:'combinatorics',label:'Combinatorics',domain:'math',phase:1},
+  {id:'information-theory',label:'Info Theory',domain:'math',phase:1},
+  {id:'complexity',label:'Complexity',domain:'math',phase:1},
+  {id:'abstract-algebra',label:'Abstract Algebra',domain:'math',phase:2},
+  {id:'finite-fields',label:'Finite Fields',domain:'math',phase:2},
+  {id:'game-theory',label:'Game Theory',domain:'math',phase:3},
+  {id:'markov-chains',label:'Markov Chains',domain:'math',phase:3},
+  {id:'formal-methods',label:'Formal Methods',domain:'math',phase:2},
+  // Systems
+  {id:'memory-mgmt',label:'Memory Mgmt',domain:'systems',phase:1},
+  {id:'filesystems',label:'Filesystems',domain:'systems',phase:1},
+  {id:'concurrency',label:'Concurrency',domain:'systems',phase:1},
+  {id:'networking',label:'Networking',domain:'systems',phase:1},
+  {id:'profiling',label:'Profiling',domain:'systems',phase:1},
+  {id:'wasm-vm',label:'WASM VM',domain:'systems',phase:4},
+  {id:'ebpf',label:'eBPF/XDP',domain:'systems',phase:4},
+  // Cryptography
+  {id:'ecc',label:'Elliptic Curves',domain:'crypto',phase:2},
+  {id:'ecdsa',label:'ECDSA',domain:'crypto',phase:2},
+  {id:'aes',label:'AES',domain:'crypto',phase:2},
+  {id:'sha256',label:'SHA-256',domain:'crypto',phase:2},
+  {id:'schnorr',label:'Schnorr',domain:'crypto',phase:3},
+  {id:'bls',label:'BLS Sigs',domain:'crypto',phase:3},
+  {id:'threshold-crypto',label:'Threshold Crypto',domain:'crypto',phase:3},
+  {id:'pq-crypto',label:'Post-Quantum',domain:'crypto',phase:4},
+  {id:'fhe',label:'Homomorphic Enc',domain:'crypto',phase:4},
+  {id:'tee',label:'TEE/SGX',domain:'crypto',phase:4},
+  // Consensus
+  {id:'raft',label:'Raft',domain:'consensus',phase:2},
+  {id:'pbft',label:'PBFT',domain:'consensus',phase:2},
+  {id:'nakamoto',label:'PoW',domain:'consensus',phase:2},
+  {id:'pos',label:'PoS',domain:'consensus',phase:2},
+  {id:'dag',label:'DAG Consensus',domain:'consensus',phase:2},
+  {id:'mev',label:'MEV',domain:'consensus',phase:3},
+  // ZKP
+  {id:'bulletproofs',label:'Bulletproofs',domain:'zkp',phase:3},
+  {id:'snarks',label:'ZK-SNARKs',domain:'zkp',phase:3},
+  {id:'starks',label:'ZK-STARKs',domain:'zkp',phase:3},
+  {id:'pairings',label:'Pairings',domain:'zkp',phase:4},
+  // DevOps
+  {id:'docker',label:'Docker',domain:'devops',phase:3},
+  {id:'kubernetes',label:'Kubernetes',domain:'devops',phase:3},
+  {id:'prometheus',label:'Prometheus',domain:'devops',phase:3},
+  {id:'otel',label:'OpenTelemetry',domain:'devops',phase:3},
+  {id:'gitops',label:'GitOps',domain:'devops',phase:3},
+  {id:'service-mesh',label:'Service Mesh',domain:'devops',phase:3},
+];
+
+const GRAPH_LINKS = [
+  {source:'set-theory',target:'abstract-algebra'},{source:'number-theory',target:'finite-fields'},
+  {source:'number-theory',target:'ecc'},{source:'finite-fields',target:'ecc'},
+  {source:'ecc',target:'ecdsa'},{source:'ecc',target:'schnorr'},{source:'ecc',target:'bls'},
+  {source:'ecc',target:'pairings'},{source:'pairings',target:'snarks'},{source:'pairings',target:'bls'},
+  {source:'sha256',target:'nakamoto'},{source:'sha256',target:'merkle'},
+  {source:'ecdsa',target:'nakamoto'},{source:'schnorr',target:'threshold-crypto'},
+  {source:'bls',target:'threshold-crypto'},{source:'threshold-crypto',target:'tee'},
+  {source:'raft',target:'kubernetes'},{source:'formal-methods',target:'raft'},
+  {source:'raft',target:'pbft'},{source:'nakamoto',target:'pos'},{source:'pos',target:'mev'},
+  {source:'game-theory',target:'mev'},{source:'markov-chains',target:'pos'},
+  {source:'concurrency',target:'raft'},{source:'networking',target:'raft'},
+  {source:'finite-fields',target:'aes'},{source:'complexity',target:'aes'},
+  {source:'bulletproofs',target:'threshold-crypto'},{source:'schnorr',target:'bulletproofs'},
+  {source:'schnorr',target:'snarks'},{source:'starks',target:'snarks'},
+  {source:'docker',target:'kubernetes'},{source:'kubernetes',target:'service-mesh'},
+  {source:'prometheus',target:'otel'},{source:'gitops',target:'kubernetes'},
+  {source:'wasm-vm',target:'snarks'},{source:'ebpf',target:'kubernetes'},
+  {source:'memory-mgmt',target:'wasm-vm'},{source:'filesystems',target:'raft'},
+  {source:'information-theory',target:'sha256'},{source:'combinatorics',target:'information-theory'},
+  {source:'pq-crypto',target:'tee'},{source:'fhe',target:'pq-crypto'},
+  {source:'dag',target:'pos'},{source:'pbft',target:'pos'},
+];
+
+// Add merkle node
+GRAPH_NODES.push({id:'merkle',label:'Merkle Tree',domain:'systems',phase:1});
+
+const DOMAIN_COLORS = {
+  math:'#00d4ff', crypto:'#7c3aed', systems:'#10b981',
+  consensus:'#f59e0b', security:'#ef4444', devops:'#06b6d4', zkp:'#818cf8',
+};
+
+let simulation, gSvg, gZoom;
+
+function initGraph() {
+  const container = document.getElementById('graph-container');
+  const w = container.clientWidth, h = container.clientHeight;
+  const svg = d3.select('#graph-svg');
+  svg.selectAll('*').remove();
+
+  const defs = svg.append('defs');
+  // Glow filter
+  const filter = defs.append('filter').attr('id','glow');
+  filter.append('feGaussianBlur').attr('stdDeviation','3').attr('result','coloredBlur');
+  const feMerge = filter.append('feMerge');
+  feMerge.append('feMergeNode').attr('in','coloredBlur');
+  feMerge.append('feMergeNode').attr('in','SourceGraphic');
+
+  gZoom = d3.zoom().scaleExtent([0.3, 3]).on('zoom', e => g.attr('transform', e.transform));
+  svg.call(gZoom);
+
+  const g = svg.append('g');
+  gSvg = g;
+
+  const nodes = GRAPH_NODES.map(n => ({...n}));
+  const links = GRAPH_LINKS.filter(l =>
+    nodes.find(n=>n.id===l.source) && nodes.find(n=>n.id===l.target)
+  ).map(l => ({...l}));
+
+  simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d=>d.id).distance(80))
+    .force('charge', d3.forceManyBody().strength(-200))
+    .force('center', d3.forceCenter(w/2, h/2))
+    .force('collision', d3.forceCollide(30));
+
+  const link = g.append('g').selectAll('line').data(links).join('line')
+    .attr('stroke', 'var(--border2)').attr('stroke-width', 1.5).attr('stroke-opacity', 0.5);
+
+  const tooltip = document.getElementById('graph-tooltip');
+
+  const node = g.append('g').selectAll('g').data(nodes).join('g')
+    .style('cursor','pointer')
+    .call(d3.drag()
+      .on('start', (e,d) => { if(!e.active) simulation.alphaTarget(0.3).restart(); d.fx=d.x;d.fy=d.y; })
+      .on('drag', (e,d) => { d.fx=e.x; d.fy=e.y; })
+      .on('end', (e,d) => { if(!e.active) simulation.alphaTarget(0); d.fx=null; d.fy=null; }))
+    .on('mousemove', (e,d) => {
+      const done = STATE.completedExercises.size;
+      tooltip.innerHTML = `<strong style="color:${DOMAIN_COLORS[d.domain]||'#fff'}">${d.label}</strong><br><span style="font-size:9px;color:var(--text3)">${d.domain} · Phase ${['','I','II','III','IV','V'][d.phase]}</span>`;
+      tooltip.style.left = (e.offsetX+12)+'px';
+      tooltip.style.top = (e.offsetY-30)+'px';
+      tooltip.classList.add('visible');
+    })
+    .on('mouseleave', () => tooltip.classList.remove('visible'));
+
+  node.append('circle')
+    .attr('r', 10)
+    .attr('fill', d => (DOMAIN_COLORS[d.domain]||'#888')+'22')
+    .attr('stroke', d => DOMAIN_COLORS[d.domain]||'#888')
+    .attr('stroke-width', 1.5)
+    .attr('filter', 'url(#glow)');
+
+  node.append('text')
+    .attr('dy', 20)
+    .attr('text-anchor','middle')
+    .attr('font-family','Space Mono')
+    .attr('font-size', '8')
+    .attr('fill','var(--text3)')
+    .text(d => d.label);
+
+  simulation.on('tick', () => {
+    link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+        .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    node.attr('transform', d=>`translate(${d.x},${d.y})`);
+  });
+}
+
+function zoomGraph(factor) {
+  const svg = d3.select('#graph-svg');
+  svg.transition().call(gZoom.scaleBy, factor);
+}
+
+function resetGraph() {
+  const svg = d3.select('#graph-svg');
+  svg.transition().call(gZoom.transform, d3.zoomIdentity);
+}
+
+function filterGraph(domain) {
+  // Highlight nodes by domain
+  if (!gSvg) return;
+  gSvg.selectAll('circle').attr('opacity', d => domain==='all'||d.domain===domain?1:0.15);
+  gSvg.selectAll('text').attr('opacity', d => domain==='all'||d.domain===domain?1:0.15);
+}
+
+// ═══════════════════════════════════════════════════════
+// PROJECTS
+// ═══════════════════════════════════════════════════════
+
+function renderProjects() {
+  const grid = document.getElementById('proj-grid');
+  grid.innerHTML = PROJECTS.map(p => {
+    const doneMilestones = p.milestones.filter(m=>m.done).length;
+    const pct = Math.round(doneMilestones/p.milestones.length*100);
+    return `<div class="proj-card">
+      <div class="proj-header">
+        <div class="proj-phase">PHASE ${['','I','II','III','IV','V'][p.phase]} CAPSTONE</div>
+        <div class="proj-name">${p.name}</div>
+        <div class="proj-desc">${p.desc}</div>
+      </div>
+      <div class="proj-body">
+        <div style="margin-bottom:8px;">
+          <div class="prog-label" style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:3px;">
+            <span>Milestones</span><span>${doneMilestones}/${p.milestones.length}</span>
+          </div>
+          <div class="prog-bar"><div class="prog-fill c${p.phase}" style="width:${pct}%"></div></div>
+        </div>
+        <div class="proj-milestones">
+          ${p.milestones.slice(0,4).map((m,i)=>`
+            <div class="milestone ${m.done?'done':''}" onclick="toggleMilestone(${p.id},${i})">
+              <div class="ms-check">${m.done?'✓':''}</div>
+              ${m.text}
+            </div>`).join('')}
+          ${p.milestones.length>4?`<div style="font-size:9px;color:var(--text3);padding:3px 0">+${p.milestones.length-4} more milestones...</div>`:''}
+        </div>
+      </div>
+      <div class="proj-footer">
+        <span class="status-pill ${p.status}">${p.status}</span>
+        <button class="btn" style="margin-left:auto;font-size:9px" onclick="advanceProject(${p.id})">Advance Stage</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMilestone(projId, milestoneIdx) {
+  const proj = PROJECTS.find(p=>p.id===projId);
+  if (!proj) return;
+  proj.milestones[milestoneIdx].done = !proj.milestones[milestoneIdx].done;
+  if (proj.milestones[milestoneIdx].done) addXP(25);
+  renderProjects();
+  toast(proj.milestones[milestoneIdx].done ? '✓ Milestone done! +25 XP' : 'Milestone unmarked');
+}
+
+function advanceProject(projId) {
+  const stages = ['concept','prototype','production','published'];
+  const proj = PROJECTS.find(p=>p.id===projId);
+  if (!proj) return;
+  const idx = stages.indexOf(proj.status);
+  if (idx < stages.length-1) {
+    proj.status = stages[idx+1];
+    addXP(200);
+    renderProjects();
+    toast(`Project advanced to ${proj.status}! +200 XP 🚀`);
+  }
+}
+
+function addProject() {
+  toast('Add project feature — coming soon!');
+}
+
+// ═══════════════════════════════════════════════════════
+// PAPERS
+// ═══════════════════════════════════════════════════════
+
+let activePaperId = null;
+
+function renderPapers() {
+  const list = document.getElementById('paper-list');
+  list.innerHTML = PAPERS.map(p => `
+    <div class="paper-item ${activePaperId===p.id?'active':''}" onclick="openPaper(${p.id})">
+      <span class="paper-status ${p.status}">${p.status.toUpperCase()}</span>
+      <div class="paper-title">${p.title}</div>
+      <div class="paper-authors">${p.authors} · ${p.year}${p.venue?' · '+p.venue:''}</div>
+      <div class="paper-tags">${p.tags.map(t=>`<span class="paper-tag">${t}</span>`).join('')}</div>
+    </div>`).join('');
+
+  if (activePaperId) openPaper(activePaperId);
+}
+
+function openPaper(id) {
+  activePaperId = id;
+  const p = PAPERS.find(pp=>pp.id===id);
+  renderPapers();
+  const detail = document.getElementById('paper-detail');
+  detail.innerHTML = `
+    <div class="paper-detail-title">${p.title}</div>
+    <div class="paper-detail-meta">${p.authors} · ${p.year}${p.venue?' · '+p.venue:''}</div>
+    <div class="paper-tags" style="margin-bottom:14px">${p.tags.map(t=>`<span class="paper-tag">${t}</span>`).join('')}</div>
+
+    <div class="annotation-box">
+      <div class="annotation-label">Abstract</div>
+      <div class="annotation-text">${p.abstract}</div>
+    </div>
+
+    <div class="annotation-box">
+      <div class="annotation-label">My Notes</div>
+      <textarea class="annotation-input" id="notes-${p.id}" onchange="savePaperNotes(${p.id})">${p.notes}</textarea>
+    </div>
+
+    <div class="annotation-box">
+      <div class="annotation-label">Open Questions</div>
+      <textarea class="annotation-input" id="questions-${p.id}" onchange="savePaperNotes(${p.id})">${p.questions}</textarea>
+    </div>
+
+    <div class="annotation-box">
+      <div class="annotation-label">Implementation Link</div>
+      <div class="annotation-text" style="color:var(--accent)">${p.implementation}</div>
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:8px;">
+      <button class="btn success" onclick="markPaperRead(${p.id})">✓ Mark as Read</button>
+      <button class="btn" onclick="challengePaper(${p.id})">◈ Implementation Challenge</button>
+    </div>`;
+}
+
+function savePaperNotes(id) {
+  // auto-save notes
+}
+
+function markPaperRead(id) {
+  const p = PAPERS.find(pp=>pp.id===id);
+  p.status = 'read';
+  STATE.masteredConcepts.add('paper-'+id);
+  document.getElementById('stat-papers').textContent = PAPERS.filter(p=>p.status==='read').length;
+  addXP(50);
+  renderPapers();
+  toast('Paper marked as read! +50 XP');
+}
+
+function challengePaper(id) {
+  toast('Implementation challenge logged in exercises!');
+}
+
+function importPaper() {
+  toast('arXiv import — enter an arXiv ID to import a paper');
+}
+
+// ═══════════════════════════════════════════════════════
+// CONTRIBUTIONS
+// ═══════════════════════════════════════════════════════
+
+function renderContrib() {
+  // Heatmap
+  const heatmap = document.getElementById('heatmap');
+  const weeks = 52;
+  let html = '';
+  for (let w = 0; w < weeks; w++) {
+    html += '<div class="heatmap-week">';
+    for (let d = 0; d < 7; d++) {
+      const rand = Math.random();
+      const level = rand > 0.85 ? 'l4' : rand > 0.7 ? 'l3' : rand > 0.5 ? 'l2' : rand > 0.35 ? 'l1' : '';
+      html += `<div class="heatmap-day ${level}"></div>`;
+    }
+    html += '</div>';
+  }
+  heatmap.innerHTML = html;
+
+  // Contribution list
+  const list = document.getElementById('contrib-list');
+  list.innerHTML = CONTRIBUTIONS.map(c => `
+    <div class="contrib-item">
+      <div class="contrib-icon">🔧</div>
+      <div>
+        <div class="contrib-repo">${c.repo}</div>
+        <div class="contrib-title">${c.title}</div>
+        <div class="contrib-meta">${c.date} · ${c.skills.join(', ')}</div>
+      </div>
+      <span class="contrib-status ${c.status}">${c.status.toUpperCase()}</span>
+    </div>`).join('');
+
+  document.getElementById('stat-contrib').textContent = CONTRIBUTIONS.length;
+}
+
+function addContrib() {
+  toast('Contribution logged! Keep contributing to open source.');
+}
+
+// ═══════════════════════════════════════════════════════
+// RESEARCH WORKSPACE
+// ═══════════════════════════════════════════════════════
+
+function renderWorkspace() {
+  const hypList = document.getElementById('hypotheses-list');
+  hypList.innerHTML = HYPOTHESES.map(h => `
+    <div class="hypothesis-card">
+      <div class="hyp-title">${h.title}</div>
+      <div class="hyp-desc">${h.desc}</div>
+      <span class="hyp-status ${h.status}">${h.status}</span>
+      <div style="margin-top:8px;font-size:9px;color:var(--text3)">Experiments: ${h.experiments.join(' · ')}</div>
+    </div>`).join('');
+
+  const expList = document.getElementById('experiments-list');
+  expList.innerHTML = EXPERIMENTS.map(e => `
+    <div class="hypothesis-card">
+      <div class="hyp-title">${e.title}</div>
+      <div style="font-size:10px;color:var(--text2);margin-bottom:6px;">${e.result}</div>
+      <span class="hyp-status ${e.status==='complete'?'validated':e.status==='running'?'exploring':'rejected'}">${e.status}</span>
+      <span style="font-size:9px;color:var(--text3);margin-left:8px;">${e.date}</span>
+    </div>`).join('');
+
+  const cfpList = document.getElementById('cfp-list');
+  cfpList.innerHTML = CFP_DEADLINES.map(c => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="flex:1">
+        <div style="font-size:11px;color:var(--text);font-weight:700">${c.name}</div>
+        <div style="font-size:9px;color:var(--text3)">${c.topic}</div>
+      </div>
+      <div style="font-size:10px;color:var(--accent4)">${c.deadline}</div>
+    </div>`).join('');
+}
+
+function addHypothesis() {
+  HYPOTHESES.push({ title:'New Hypothesis', status:'exploring',
+    desc:'Define your hypothesis here. What do you expect to find?', experiments:['Design experiment'] });
+  renderWorkspace();
+  toast('New hypothesis added!');
+}
+
+function addExperiment() {
+  EXPERIMENTS.push({ title:'New Experiment', date: new Date().toISOString().split('T')[0],
+    result:'In progress...', status:'running' });
+  renderWorkspace();
+  toast('Experiment logged!');
+}
+
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+
+loadState();
+renderExercises();
+renderProjects();
+updateDashboard();
+
+// Update XP display
+document.getElementById('xp-display').textContent = STATE.xp.toLocaleString();
+document.getElementById('m-xp').textContent = STATE.xp.toLocaleString();
+document.getElementById('m-streak').textContent = STATE.streak;
+
+// Close modal on overlay click
+document.getElementById('ex-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// Graph resize
+window.addEventListener('resize', () => {
+  const panel = document.getElementById('panel-graph');
+  if (panel.classList.contains('active')) initGraph();
+});
+
+// Init review queue count
+const dueCount = buildReviewQueue().filter(c=>c.due).length;
+if (dueCount > 0) {
+  document.querySelector('nav button:nth-child(3)').textContent = `⟳ Review (${dueCount})`;
+}
+
+// ═══════════════════════════════════════════════════════
+// BACKEND API CLIENT
+// Connects to Go backend when available; silently falls
+// back to localStorage when offline or unauthenticated.
+// ═══════════════════════════════════════════════════════
+
+const API_BASE = window.location.origin.includes('localhost:80')
+  ? 'http://localhost:8080'
+  : window.location.origin;
+
+const API = {
+  token: localStorage.getItem('prds_jwt') || null,
+
+  async request(endpoint, options = {}) {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(this.token && { 'Authorization': `Bearer ${this.token}` }),
+      ...options.headers,
+    };
+    try {
+      const res = await fetch(`${API_BASE}/api/v1${endpoint}`, { ...options, headers });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+      }
+      if (res.status === 204) return null;
+      return res.json();
+    } catch (e) {
+      // Network error → offline mode
+      console.debug('[PRDS API] offline or error:', e.message);
+      return null;
+    }
+  },
+
+  // Auth
+  register: (u, e, p) => API.request('/auth/register', { method:'POST', body: JSON.stringify({username:u,email:e,password:p}) }),
+  login:    (e, p)    => API.request('/auth/login',    { method:'POST', body: JSON.stringify({email:e,password:p}) }),
+  me:       ()        => API.request('/me'),
+
+  // Exercises
+  getExercises: (phase, domain) => API.request(`/exercises${phase?`?phase=${phase}`:''}${domain?`&domain=${domain}`:''}`),
+  getExercise:  (id)   => API.request(`/exercises/${id}`),
+  runCode:      (id, code) => API.request(`/exercises/${id}/run`, { method:'POST', body: JSON.stringify({code}) }),
+  submitCode:   (id, code, notes) => API.request(`/exercises/${id}/submit`, { method:'POST', body: JSON.stringify({code,notes}) }),
+  markComplete: (id)   => API.request(`/exercises/${id}/complete`, { method:'POST' }),
+
+  // Progress
+  getProgress: () => API.request('/progress'),
+
+  // Review
+  getReviewQueue: () => API.request('/review/queue'),
+  submitRating:   (cardId, quality) => API.request(`/review/${cardId}`, { method:'POST', body: JSON.stringify({quality}) }),
+
+  // Projects
+  getProjects:      ()     => API.request('/projects'),
+  createProject:    (p)    => API.request('/projects', { method:'POST', body: JSON.stringify(p) }),
+  toggleMilestone:  (id,i) => API.request(`/projects/${id}/milestone`, { method:'POST', body: JSON.stringify({index:i}) }),
+  advanceProject:   (id)   => API.request(`/projects/${id}/advance`, { method:'PATCH' }),
+
+  // Papers
+  getPapers:       ()       => API.request('/papers'),
+  updatePaper:     (id, d)  => API.request(`/papers/${id}`, { method:'PATCH', body: JSON.stringify(d) }),
+  importArxiv:     (arxiv)  => API.request('/papers/import/arxiv', { method:'POST', body: JSON.stringify({arxiv_id:arxiv}) }),
+
+  // Contributions
+  getContributions: ()      => API.request('/contributions'),
+  createContrib:    (c)     => API.request('/contributions', { method:'POST', body: JSON.stringify(c) }),
+  getHeatmap:       ()      => API.request('/contributions/heatmap'),
+  syncGitHub:       (t)     => API.request('/github/sync', { method:'POST', body: JSON.stringify({github_token:t}) }),
+
+  // Research
+  getHypotheses:      ()    => API.request('/hypotheses'),
+  createHypothesis:   (h)   => API.request('/hypotheses', { method:'POST', body: JSON.stringify(h) }),
+  getExperiments:     ()    => API.request('/experiments'),
+  createExperiment:   (e)   => API.request('/experiments', { method:'POST', body: JSON.stringify(e) }),
+
+  // Analytics
+  getSkillGrowth:  () => API.request('/analytics/skills'),
+  getVelocity:     () => API.request('/analytics/velocity'),
+
+  // Export
+  exportJSON:      () => API.request('/export/json'),
+  exportMarkdown:  () => API.request('/export/markdown'),
+
+  // Migration
+  migrateLocalStorage: (data) => API.request('/migrate/localstorage', { method:'POST', body: JSON.stringify(data) }),
+
+  // Utilities
+  setToken(token) {
+    this.token = token;
+    localStorage.setItem('prds_jwt', token);
+  },
+  clearToken() {
+    this.token = null;
+    localStorage.removeItem('prds_jwt');
+  },
+  isAuthenticated() { return !!this.token; },
+};
+
+// ─── Auth Modal ───────────────────────────────────────────────────────────────
+
+function injectAuthUI() {
+  // Auth modal HTML
+  const modalHTML = `
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <div class="modal-title" id="auth-modal-title">Sign In</div>
+      <button class="modal-close" onclick="toggleAuthModal(false)">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="auth-error" style="display:none;background:rgba(239,68,68,0.1);border:1px solid var(--accent5);border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--accent5);"></div>
+      <div style="margin-bottom:10px;">
+        <div style="font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:5px;">Email</div>
+        <input class="code-area" id="auth-email" type="email" style="min-height:auto;padding:9px 12px;font-family:var(--font-ui)" placeholder="you@example.com">
+      </div>
+      <div id="auth-username-wrap" style="display:none;margin-bottom:10px;">
+        <div style="font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:5px;">Username</div>
+        <input class="code-area" id="auth-username" style="min-height:auto;padding:9px 12px;font-family:var(--font-ui)" placeholder="lucciano">
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:9px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:5px;">Password</div>
+        <input class="code-area" id="auth-password" type="password" style="min-height:auto;padding:9px 12px;font-family:var(--font-ui)" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitAuth()">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+        <button class="btn" onclick="toggleAuthMode()">
+          <span id="auth-switch-text">No account? Register</span>
+        </button>
+        <button class="btn primary" onclick="submitAuth()" id="auth-submit-btn">Sign In</button>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);">
+        ⬡ Offline mode is active — all progress auto-saves to localStorage.
+        Sign in to sync across devices and enable code execution.
+      </div>
+    </div>
+  </div>
+</div>`;
+
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+  // Auth button in topbar
+  const topbarRight = document.querySelector('.topbar-right');
+  const authBtn = document.createElement('button');
+  authBtn.className = 'btn';
+  authBtn.id = 'auth-btn';
+  authBtn.style.fontSize = '10px';
+  authBtn.onclick = () => {
+    if (API.isAuthenticated()) {
+      API.clearToken();
+      AUTH_STATE.user = null;
+      updateAuthUI();
+      toast('Signed out');
+    } else {
+      toggleAuthModal(true);
+    }
+  };
+  topbarRight.insertBefore(authBtn, topbarRight.firstChild);
+  updateAuthUI();
+}
+
+const AUTH_STATE = { user: null, isRegister: false };
+
+function toggleAuthModal(show) {
+  document.getElementById('auth-modal').classList.toggle('open', show);
+  if (show) {
+    document.getElementById('auth-error').style.display = 'none';
+    document.getElementById('auth-email').focus();
+  }
+}
+
+function toggleAuthMode() {
+  AUTH_STATE.isRegister = !AUTH_STATE.isRegister;
+  document.getElementById('auth-modal-title').textContent = AUTH_STATE.isRegister ? 'Create Account' : 'Sign In';
+  document.getElementById('auth-submit-btn').textContent = AUTH_STATE.isRegister ? 'Create Account' : 'Sign In';
+  document.getElementById('auth-switch-text').textContent = AUTH_STATE.isRegister ? 'Have an account? Sign in' : 'No account? Register';
+  document.getElementById('auth-username-wrap').style.display = AUTH_STATE.isRegister ? 'block' : 'none';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+async function submitAuth() {
+  const btn = document.getElementById('auth-submit-btn');
+  const errEl = document.getElementById('auth-error');
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const username = document.getElementById('auth-username').value.trim();
+
+  if (!email || !password) { showAuthError('Email and password required'); return; }
+
+  btn.textContent = '...';
+  btn.disabled = true;
+  errEl.style.display = 'none';
+
+  try {
+    let result;
+    if (AUTH_STATE.isRegister) {
+      if (!username) { showAuthError('Username required'); return; }
+      result = await API.register(username, email, password);
+    } else {
+      result = await API.login(email, password);
+    }
+
+    if (!result || !result.token) {
+      showAuthError(result?.error || 'Authentication failed — check backend is running');
+      return;
+    }
+
+    API.setToken(result.token);
+    AUTH_STATE.user = result.user;
+    toggleAuthModal(false);
+    updateAuthUI();
+    toast(`✓ Welcome${AUTH_STATE.isRegister ? ', ' + result.user.username : ' back'}! Syncing data...`);
+
+    // Sync from backend
+    await syncFromBackend();
+
+  } catch(e) {
+    showAuthError(e.message);
+  } finally {
+    btn.textContent = AUTH_STATE.isRegister ? 'Create Account' : 'Sign In';
+    btn.disabled = false;
+  }
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('auth-submit-btn').textContent = AUTH_STATE.isRegister ? 'Create Account' : 'Sign In';
+  document.getElementById('auth-submit-btn').disabled = false;
+}
+
+function updateAuthUI() {
+  const btn = document.getElementById('auth-btn');
+  if (!btn) return;
+  if (API.isAuthenticated() && AUTH_STATE.user) {
+    btn.textContent = `⎋ ${AUTH_STATE.user.username}`;
+    btn.title = 'Click to sign out';
+    btn.style.color = 'var(--accent3)';
+    btn.style.borderColor = 'var(--accent3)';
+  } else if (API.isAuthenticated()) {
+    btn.textContent = '⎋ Signed in';
+    btn.style.color = 'var(--accent3)';
+  } else {
+    btn.textContent = '↗ Sign In';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  }
+}
+
+// ─── Backend Sync ─────────────────────────────────────────────────────────────
+
+async function syncFromBackend() {
+  if (!API.isAuthenticated()) return;
+
+  // Load user info
+  const user = await API.me();
+  if (user) {
+    AUTH_STATE.user = user;
+    STATE.xp = user.xp;
+    STATE.streak = user.streak;
+    updateAuthUI();
+  }
+
+  // Load progress summary
+  const progress = await API.getProgress();
+  if (progress) {
+    STATE.xp = progress.xp || STATE.xp;
+    STATE.streak = progress.streak || STATE.streak;
+    document.getElementById('xp-display').textContent = STATE.xp.toLocaleString();
+  }
+
+  // Refresh UI
+  updateDashboard();
+  renderExercises();
+  renderProjects();
+
+  toast('✓ Synced with backend');
+}
+
+// Override markComplete to also call API
+const _origMarkComplete = markComplete;
+window.markComplete = async function() {
+  const ex = STATE.currentExercise;
+  _origMarkComplete(); // localStorage update
+  if (API.isAuthenticated() && ex) {
+    const code = document.getElementById('modal-code')?.value || '';
+    const notes = document.getElementById('modal-notes')?.value || '';
+    await API.markComplete(ex.id);
+    await API.submitCode(ex.id, code, notes);
+  }
+};
+
+// Override markInProgress to sync
+const _origMarkInProgress = markInProgress;
+window.markInProgress = async function() {
+  _origMarkInProgress();
+  const ex = STATE.currentExercise;
+  if (API.isAuthenticated() && ex) {
+    const code = document.getElementById('modal-code')?.value || '';
+    const notes = document.getElementById('modal-notes')?.value || '';
+    await API.submitCode(ex.id, code, notes);
+  }
+};
+
+// ─── Code Execution via Backend ───────────────────────────────────────────────
+
+async function runCodeInBackend() {
+  const ex = STATE.currentExercise;
+  if (!ex || !API.isAuthenticated()) {
+    toast('Sign in to run code in the secure sandbox');
+    return;
+  }
+  const code = document.getElementById('modal-code').value;
+  if (!code.trim()) { toast('Write some code first!'); return; }
+
+  const btn = document.getElementById('run-code-btn');
+  if (btn) { btn.textContent = '⏳ Running...'; btn.disabled = true; }
+
+  toast('🚀 Executing in Docker sandbox...');
+  const result = await API.runCode(ex.id, code);
+
+  if (btn) { btn.textContent = '▶ Run Code'; btn.disabled = false; }
+
+  if (!result) {
+    toast('⚠ Execution failed — backend not reachable');
+    return;
+  }
+
+  // Show result in modal
+  const outputEl = document.getElementById('exec-output');
+  if (outputEl) {
+    outputEl.style.display = 'block';
+    outputEl.textContent = result.stdout || result.stderr || '(no output)';
+    outputEl.style.color = result.passed ? 'var(--accent3)' : 'var(--accent5)';
+  }
+
+  toast(result.passed ? `✓ Passed (${result.duration_ms}ms)` : `✗ Failed: check output`);
+}
+
+// Inject Run Code button + output area into modal footer
+function enhanceExerciseModal() {
+  const footer = document.querySelector('#ex-modal .modal-footer');
+  if (!footer || footer.querySelector('#run-code-btn')) return;
+
+  const runBtn = document.createElement('button');
+  runBtn.className = 'btn';
+  runBtn.id = 'run-code-btn';
+  runBtn.textContent = '▶ Run Code';
+  runBtn.onclick = runCodeInBackend;
+  footer.insertBefore(runBtn, footer.firstChild);
+
+  // Execution output area
+  const outputEl = document.createElement('pre');
+  outputEl.id = 'exec-output';
+  outputEl.style.cssText = `
+    display:none;margin-top:10px;background:var(--bg);
+    border:1px solid var(--border);border-radius:6px;padding:12px;
+    font-family:var(--font-mono);font-size:11px;max-height:160px;
+    overflow-y:auto;white-space:pre-wrap;word-break:break-all;
+  `;
+  document.querySelector('#ex-modal .modal-body').appendChild(outputEl);
+}
+
+// Patch openExercise to also enhance modal
+const _origOpenExercise = openExercise;
+window.openExercise = function(id) {
+  _origOpenExercise(id);
+  // Reset output
+  const out = document.getElementById('exec-output');
+  if (out) { out.style.display = 'none'; out.textContent = ''; }
+  enhanceExerciseModal();
+};
+
+// ─── Export / Backup ──────────────────────────────────────────────────────────
+
+async function exportProgress(format = 'json') {
+  if (!API.isAuthenticated()) {
+    // Local export
+    const data = {
+      xp: STATE.xp,
+      streak: STATE.streak,
+      completed: [...STATE.completedExercises],
+      inProgress: [...STATE.inProgressExercises],
+      exported_at: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'prds-export.json';
+    a.click();
+    toast('✓ Exported (local)');
+    return;
+  }
+
+  toast('Generating export...');
+  const endpoint = format === 'markdown' ? '/export/markdown' : '/export/json';
+  const res = await fetch(`${API_BASE}/api/v1${endpoint}`, {
+    headers: { 'Authorization': `Bearer ${API.token}` }
+  });
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = format === 'markdown' ? 'prds-progress.md' : 'prds-export.json';
+  a.click();
+  toast('✓ Export downloaded');
+}
+
+// ─── GitHub Sync UI ──────────────────────────────────────────────────────────
+
+async function syncGitHubContribs() {
+  if (!API.isAuthenticated()) {
+    toast('Sign in first to sync GitHub contributions');
+    return;
+  }
+  const token = prompt('Enter your GitHub Personal Access Token (read:user, repo scopes):\n\nGet one at: github.com/settings/tokens');
+  if (!token) return;
+  toast('Syncing GitHub contributions...');
+  const result = await API.syncGitHub(token);
+  if (result) {
+    toast(`✓ Synced ${result.synced} contributions from GitHub`);
+    renderContrib();
+  } else {
+    toast('⚠ GitHub sync failed — check token and backend');
+  }
+}
+
+// ─── arXiv Import ─────────────────────────────────────────────────────────────
+
+async function importPaper() {
+  if (!API.isAuthenticated()) {
+    toast('Sign in to import papers from arXiv');
+    return;
+  }
+  const arxivId = prompt('Enter arXiv ID (e.g. 1810.04805 for BERT):');
+  if (!arxivId) return;
+  toast(`Importing ${arxivId} from arXiv...`);
+  const paper = await API.importArxiv(arxivId.trim());
+  if (paper) {
+    toast(`✓ Imported: ${paper.title || arxivId}`);
+    renderPapers();
+  } else {
+    toast('⚠ Import failed — check arXiv ID and backend');
+  }
+}
+
+// ─── Add Export + Sync buttons to panels ─────────────────────────────────────
+
+function addBackendButtons() {
+  // Add to contributions panel header
+  const contribHeader = document.querySelector('#panel-contrib .panel-actions');
+  if (contribHeader && !contribHeader.querySelector('[data-gh-sync]')) {
+    const syncBtn = document.createElement('button');
+    syncBtn.className = 'btn';
+    syncBtn.setAttribute('data-gh-sync', '1');
+    syncBtn.textContent = '⬢ Sync GitHub';
+    syncBtn.onclick = syncGitHubContribs;
+    contribHeader.appendChild(syncBtn);
+  }
+
+  // Add export button to dashboard
+  const dashActions = document.querySelector('#panel-dashboard .panel-actions');
+  if (dashActions && !dashActions.querySelector('[data-export]')) {
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'btn';
+    exportBtn.setAttribute('data-export', '1');
+    exportBtn.textContent = '↓ Export';
+    exportBtn.onclick = () => exportProgress('json');
+    dashActions.appendChild(exportBtn);
+  }
+}
+
+// ─── Auto-restore session ─────────────────────────────────────────────────────
+
+async function restoreSession() {
+  if (!API.isAuthenticated()) return;
+  const user = await API.me();
+  if (user) {
+    AUTH_STATE.user = user;
+    STATE.xp = user.xp;
+    STATE.streak = user.streak;
+    updateAuthUI();
+    document.getElementById('xp-display').textContent = STATE.xp.toLocaleString();
+    document.getElementById('m-xp').textContent = STATE.xp.toLocaleString();
+    updateDashboard();
+    toast('✓ Session restored');
+  } else {
+    // Token expired
+    API.clearToken();
+  }
+}
+
+// ─── Boot backend integration ─────────────────────────────────────────────────
+
+injectAuthUI();
+addBackendButtons();
+restoreSession(); // non-blocking
+
+// Close auth modal on overlay click
+document.addEventListener('click', e => {
+  const modal = document.getElementById('auth-modal');
+  if (modal && e.target === modal) toggleAuthModal(false);
+});
+</script>
+</body>
+</html>

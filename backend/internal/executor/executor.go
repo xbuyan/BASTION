@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/google/uuid"
-	"github.com/lucciano/prds/internal/models"
+	"github.com/lucciano/bastion/internal/models"
 	"go.uber.org/zap"
 )
 

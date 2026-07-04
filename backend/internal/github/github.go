@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/lucciano/prds/pkg/config"
+	"github.com/lucciano/bastion/pkg/config"
 )
 
 const (

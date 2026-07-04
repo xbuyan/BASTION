@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lucciano/prds/internal/db"
-	"github.com/lucciano/prds/internal/models"
+	"github.com/lucciano/bastion/internal/db"
+	"github.com/lucciano/bastion/internal/models"
 )
 
 // ─── UserRepo ─────────────────────────────────────────────────────────────────

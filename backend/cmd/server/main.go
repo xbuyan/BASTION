@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lucciano/prds/internal/api"
-	"github.com/lucciano/prds/internal/db"
-	"github.com/lucciano/prds/pkg/config"
+	"github.com/lucciano/bastion/internal/api"
+	"github.com/lucciano/bastion/internal/db"
+	"github.com/lucciano/bastion/pkg/config"
 	"go.uber.org/zap"
 )
 
@@ -67,7 +67,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		logger.Info("PRDS backend started", zap.String("port", cfg.Port), zap.String("env", cfg.Env))
+		logger.Info("BASTION backend started", zap.String("port", cfg.Port), zap.String("env", cfg.Env))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("server error", zap.Error(err))
 		}

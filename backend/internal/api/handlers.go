@@ -10,12 +10,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/lucciano/prds/internal/auth"
-	"github.com/lucciano/prds/internal/executor"
-	"github.com/lucciano/prds/internal/github"
-	"github.com/lucciano/prds/internal/models"
-	"github.com/lucciano/prds/internal/service"
-	"github.com/lucciano/prds/pkg/config"
+	"github.com/lucciano/bastion/internal/auth"
+	"github.com/lucciano/bastion/internal/executor"
+	"github.com/lucciano/bastion/internal/github"
+	"github.com/lucciano/bastion/internal/models"
+	"github.com/lucciano/bastion/internal/service"
+	"github.com/lucciano/bastion/pkg/config"
 	"golang.org/x/time/rate"
 )
 

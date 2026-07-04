@@ -1,4 +1,4 @@
-module github.com/lucciano/prds
+module github.com/lucciano/bastion
 
 go 1.24
 

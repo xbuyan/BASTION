@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lucciano/prds/internal/auth"
-	"github.com/lucciano/prds/internal/github"
-	"github.com/lucciano/prds/internal/models"
-	"github.com/lucciano/prds/internal/repository"
+	"github.com/lucciano/bastion/internal/auth"
+	"github.com/lucciano/bastion/internal/github"
+	"github.com/lucciano/bastion/internal/models"
+	"github.com/lucciano/bastion/internal/repository"
 	"github.com/redis/go-redis/v9"
 )
 
